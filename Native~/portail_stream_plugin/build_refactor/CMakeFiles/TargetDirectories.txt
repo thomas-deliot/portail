@@ -2,5 +2,6 @@ C:/Users/Thomas/Programmation/Business/Portail Games/portail/Native~/portail_str
 C:/Users/Thomas/Programmation/Business/Portail Games/portail/Native~/portail_stream_plugin/build_refactor/CMakeFiles/stream_audio.dir
 C:/Users/Thomas/Programmation/Business/Portail Games/portail/Native~/portail_stream_plugin/build_refactor/CMakeFiles/portail_stream_sender_plugin.dir
 C:/Users/Thomas/Programmation/Business/Portail Games/portail/Native~/portail_stream_plugin/build_refactor/CMakeFiles/portail_stream_receiver_plugin.dir
+C:/Users/Thomas/Programmation/Business/Portail Games/portail/Native~/portail_stream_plugin/build_refactor/CMakeFiles/copy_portail_stream_plugins.dir
 C:/Users/Thomas/Programmation/Business/Portail Games/portail/Native~/portail_stream_plugin/build_refactor/CMakeFiles/edit_cache.dir
 C:/Users/Thomas/Programmation/Business/Portail Games/portail/Native~/portail_stream_plugin/build_refactor/CMakeFiles/rebuild_cache.dir

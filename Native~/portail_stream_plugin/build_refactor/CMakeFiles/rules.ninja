@@ -7,7 +7,7 @@
 
 # =============================================================================
 # Project: portail_stream_plugin
-# Configurations: Debug
+# Configurations: 
 # =============================================================================
 # =============================================================================
 
@@ -20,7 +20,7 @@ msvc_deps_prefix = Note: including file:
 #############################################
 # Rule for generating CXX dependencies.
 
-rule CXX_SCAN__portail_stream_common_Debug
+rule CXX_SCAN__portail_stream_common_
   deps = msvc
   command = C:\PROGRA~1\MIB055~1\18\COMMUN~1\VC\Tools\MSVC\1451~1.362\bin\Hostx64\x64\cl.exe $DEFINES $INCLUDES $FLAGS $in -nologo -TP -showIncludes -scanDependencies $DYNDEP_INTERMEDIATE_FILE -Fo$OBJ_FILE
   description = Scanning $in for CXX dependencies
@@ -29,7 +29,7 @@ rule CXX_SCAN__portail_stream_common_Debug
 #############################################
 # Rule to generate ninja dyndep files for CXX.
 
-rule CXX_DYNDEP__portail_stream_common_Debug
+rule CXX_DYNDEP__portail_stream_common_
   command = "C:\Program Files\CMake\bin\cmake.exe" -E cmake_ninja_dyndep --tdi=CMakeFiles\portail_stream_common.dir\CXXDependInfo.json --lang=CXX --modmapfmt=msvc --dd=$out @$out.rsp
   description = Generating CXX dyndep file $out
   rspfile = $out.rsp
@@ -40,7 +40,7 @@ rule CXX_DYNDEP__portail_stream_common_Debug
 #############################################
 # Rule for compiling CXX files.
 
-rule CXX_COMPILER__portail_stream_common_scanned_Debug
+rule CXX_COMPILER__portail_stream_common_scanned_
   deps = msvc
   command = ${LAUNCHER}${CODE_CHECK}C:\PROGRA~1\MIB055~1\18\COMMUN~1\VC\Tools\MSVC\1451~1.362\bin\Hostx64\x64\cl.exe  /nologo /TP $DEFINES $INCLUDES $FLAGS /showIncludes @$DYNDEP_MODULE_MAP_FILE /Fo$out /Fd$TARGET_COMPILE_PDB /FS -c $in
   description = Building CXX object $out
@@ -49,7 +49,7 @@ rule CXX_COMPILER__portail_stream_common_scanned_Debug
 #############################################
 # Rule for compiling CXX files.
 
-rule CXX_COMPILER__portail_stream_common_unscanned_Debug
+rule CXX_COMPILER__portail_stream_common_unscanned_
   deps = msvc
   command = ${LAUNCHER}${CODE_CHECK}C:\PROGRA~1\MIB055~1\18\COMMUN~1\VC\Tools\MSVC\1451~1.362\bin\Hostx64\x64\cl.exe  /nologo /TP $DEFINES $INCLUDES $FLAGS /showIncludes /Fo$out /Fd$TARGET_COMPILE_PDB /FS -c $in
   description = Building CXX object $out
@@ -58,7 +58,7 @@ rule CXX_COMPILER__portail_stream_common_unscanned_Debug
 #############################################
 # Rule for linking CXX shared library.
 
-rule CXX_SHARED_LIBRARY_LINKER__portail_stream_common_Debug
+rule CXX_SHARED_LIBRARY_LINKER__portail_stream_common_
   command = C:\WINDOWS\system32\cmd.exe /C "$PRE_LINK && "C:\Program Files\CMake\bin\cmake.exe" -E vs_link_dll --msvc-ver=1951 --intdir=$OBJECT_DIR --rc=C:\PROGRA~2\WI3CF2~1\10\bin\100261~1.0\x64\rc.exe --mt=C:\PROGRA~2\WI3CF2~1\10\bin\100261~1.0\x64\mt.exe --manifests $MANIFESTS -- C:\PROGRA~1\MIB055~1\18\COMMUN~1\VC\Tools\MSVC\1451~1.362\bin\Hostx64\x64\link.exe /nologo $in  /out:$TARGET_FILE /implib:$TARGET_IMPLIB /pdb:$TARGET_PDB /dll /version:0.0 $LINK_FLAGS $LINK_PATH $LINK_LIBRARIES && $POST_BUILD"
   description = Linking CXX shared library $TARGET_FILE
   restat = $RESTAT
@@ -67,7 +67,7 @@ rule CXX_SHARED_LIBRARY_LINKER__portail_stream_common_Debug
 #############################################
 # Rule for generating CXX dependencies.
 
-rule CXX_SCAN__stream_audio_Debug
+rule CXX_SCAN__stream_audio_
   deps = msvc
   command = C:\PROGRA~1\MIB055~1\18\COMMUN~1\VC\Tools\MSVC\1451~1.362\bin\Hostx64\x64\cl.exe $DEFINES $INCLUDES $FLAGS $in -nologo -TP -showIncludes -scanDependencies $DYNDEP_INTERMEDIATE_FILE -Fo$OBJ_FILE
   description = Scanning $in for CXX dependencies
@@ -76,7 +76,7 @@ rule CXX_SCAN__stream_audio_Debug
 #############################################
 # Rule to generate ninja dyndep files for CXX.
 
-rule CXX_DYNDEP__stream_audio_Debug
+rule CXX_DYNDEP__stream_audio_
   command = "C:\Program Files\CMake\bin\cmake.exe" -E cmake_ninja_dyndep --tdi=CMakeFiles\stream_audio.dir\CXXDependInfo.json --lang=CXX --modmapfmt=msvc --dd=$out @$out.rsp
   description = Generating CXX dyndep file $out
   rspfile = $out.rsp
@@ -87,7 +87,7 @@ rule CXX_DYNDEP__stream_audio_Debug
 #############################################
 # Rule for compiling CXX files.
 
-rule CXX_COMPILER__stream_audio_scanned_Debug
+rule CXX_COMPILER__stream_audio_scanned_
   deps = msvc
   command = ${LAUNCHER}${CODE_CHECK}C:\PROGRA~1\MIB055~1\18\COMMUN~1\VC\Tools\MSVC\1451~1.362\bin\Hostx64\x64\cl.exe  /nologo /TP $DEFINES $INCLUDES $FLAGS /showIncludes @$DYNDEP_MODULE_MAP_FILE /Fo$out /Fd$TARGET_COMPILE_PDB /FS -c $in
   description = Building CXX object $out
@@ -96,7 +96,7 @@ rule CXX_COMPILER__stream_audio_scanned_Debug
 #############################################
 # Rule for compiling CXX files.
 
-rule CXX_COMPILER__stream_audio_unscanned_Debug
+rule CXX_COMPILER__stream_audio_unscanned_
   deps = msvc
   command = ${LAUNCHER}${CODE_CHECK}C:\PROGRA~1\MIB055~1\18\COMMUN~1\VC\Tools\MSVC\1451~1.362\bin\Hostx64\x64\cl.exe  /nologo /TP $DEFINES $INCLUDES $FLAGS /showIncludes /Fo$out /Fd$TARGET_COMPILE_PDB /FS -c $in
   description = Building CXX object $out
@@ -105,7 +105,7 @@ rule CXX_COMPILER__stream_audio_unscanned_Debug
 #############################################
 # Rule for linking CXX static library.
 
-rule CXX_STATIC_LIBRARY_LINKER__stream_audio_Debug
+rule CXX_STATIC_LIBRARY_LINKER__stream_audio_
   command = C:\WINDOWS\system32\cmd.exe /C "$PRE_LINK && C:\PROGRA~1\MIB055~1\18\COMMUN~1\VC\Tools\MSVC\1451~1.362\bin\Hostx64\x64\lib.exe /nologo $LINK_FLAGS /out:$TARGET_FILE $in && $POST_BUILD"
   description = Linking CXX static library $TARGET_FILE
   restat = $RESTAT
@@ -114,7 +114,7 @@ rule CXX_STATIC_LIBRARY_LINKER__stream_audio_Debug
 #############################################
 # Rule for generating CXX dependencies.
 
-rule CXX_SCAN__portail_stream_sender_plugin_Debug
+rule CXX_SCAN__portail_stream_sender_plugin_
   deps = msvc
   command = C:\PROGRA~1\MIB055~1\18\COMMUN~1\VC\Tools\MSVC\1451~1.362\bin\Hostx64\x64\cl.exe $DEFINES $INCLUDES $FLAGS $in -nologo -TP -showIncludes -scanDependencies $DYNDEP_INTERMEDIATE_FILE -Fo$OBJ_FILE
   description = Scanning $in for CXX dependencies
@@ -123,7 +123,7 @@ rule CXX_SCAN__portail_stream_sender_plugin_Debug
 #############################################
 # Rule to generate ninja dyndep files for CXX.
 
-rule CXX_DYNDEP__portail_stream_sender_plugin_Debug
+rule CXX_DYNDEP__portail_stream_sender_plugin_
   command = "C:\Program Files\CMake\bin\cmake.exe" -E cmake_ninja_dyndep --tdi=CMakeFiles\portail_stream_sender_plugin.dir\CXXDependInfo.json --lang=CXX --modmapfmt=msvc --dd=$out @$out.rsp
   description = Generating CXX dyndep file $out
   rspfile = $out.rsp
@@ -134,7 +134,7 @@ rule CXX_DYNDEP__portail_stream_sender_plugin_Debug
 #############################################
 # Rule for compiling CXX files.
 
-rule CXX_COMPILER__portail_stream_sender_plugin_scanned_Debug
+rule CXX_COMPILER__portail_stream_sender_plugin_scanned_
   deps = msvc
   command = ${LAUNCHER}${CODE_CHECK}C:\PROGRA~1\MIB055~1\18\COMMUN~1\VC\Tools\MSVC\1451~1.362\bin\Hostx64\x64\cl.exe  /nologo /TP $DEFINES $INCLUDES $FLAGS /showIncludes @$DYNDEP_MODULE_MAP_FILE /Fo$out /Fd$TARGET_COMPILE_PDB /FS -c $in
   description = Building CXX object $out
@@ -143,7 +143,7 @@ rule CXX_COMPILER__portail_stream_sender_plugin_scanned_Debug
 #############################################
 # Rule for compiling CXX files.
 
-rule CXX_COMPILER__portail_stream_sender_plugin_unscanned_Debug
+rule CXX_COMPILER__portail_stream_sender_plugin_unscanned_
   deps = msvc
   command = ${LAUNCHER}${CODE_CHECK}C:\PROGRA~1\MIB055~1\18\COMMUN~1\VC\Tools\MSVC\1451~1.362\bin\Hostx64\x64\cl.exe  /nologo /TP $DEFINES $INCLUDES $FLAGS /showIncludes /Fo$out /Fd$TARGET_COMPILE_PDB /FS -c $in
   description = Building CXX object $out
@@ -152,7 +152,7 @@ rule CXX_COMPILER__portail_stream_sender_plugin_unscanned_Debug
 #############################################
 # Rule for linking CXX shared library.
 
-rule CXX_SHARED_LIBRARY_LINKER__portail_stream_sender_plugin_Debug
+rule CXX_SHARED_LIBRARY_LINKER__portail_stream_sender_plugin_
   command = C:\WINDOWS\system32\cmd.exe /C "$PRE_LINK && "C:\Program Files\CMake\bin\cmake.exe" -E vs_link_dll --msvc-ver=1951 --intdir=$OBJECT_DIR --rc=C:\PROGRA~2\WI3CF2~1\10\bin\100261~1.0\x64\rc.exe --mt=C:\PROGRA~2\WI3CF2~1\10\bin\100261~1.0\x64\mt.exe --manifests $MANIFESTS -- C:\PROGRA~1\MIB055~1\18\COMMUN~1\VC\Tools\MSVC\1451~1.362\bin\Hostx64\x64\link.exe /nologo $in  /out:$TARGET_FILE /implib:$TARGET_IMPLIB /pdb:$TARGET_PDB /dll /version:0.0 $LINK_FLAGS $LINK_PATH $LINK_LIBRARIES && $POST_BUILD"
   description = Linking CXX shared library $TARGET_FILE
   restat = $RESTAT
@@ -161,7 +161,7 @@ rule CXX_SHARED_LIBRARY_LINKER__portail_stream_sender_plugin_Debug
 #############################################
 # Rule for generating CXX dependencies.
 
-rule CXX_SCAN__portail_stream_receiver_plugin_Debug
+rule CXX_SCAN__portail_stream_receiver_plugin_
   deps = msvc
   command = C:\PROGRA~1\MIB055~1\18\COMMUN~1\VC\Tools\MSVC\1451~1.362\bin\Hostx64\x64\cl.exe $DEFINES $INCLUDES $FLAGS $in -nologo -TP -showIncludes -scanDependencies $DYNDEP_INTERMEDIATE_FILE -Fo$OBJ_FILE
   description = Scanning $in for CXX dependencies
@@ -170,7 +170,7 @@ rule CXX_SCAN__portail_stream_receiver_plugin_Debug
 #############################################
 # Rule to generate ninja dyndep files for CXX.
 
-rule CXX_DYNDEP__portail_stream_receiver_plugin_Debug
+rule CXX_DYNDEP__portail_stream_receiver_plugin_
   command = "C:\Program Files\CMake\bin\cmake.exe" -E cmake_ninja_dyndep --tdi=CMakeFiles\portail_stream_receiver_plugin.dir\CXXDependInfo.json --lang=CXX --modmapfmt=msvc --dd=$out @$out.rsp
   description = Generating CXX dyndep file $out
   rspfile = $out.rsp
@@ -181,7 +181,7 @@ rule CXX_DYNDEP__portail_stream_receiver_plugin_Debug
 #############################################
 # Rule for compiling CXX files.
 
-rule CXX_COMPILER__portail_stream_receiver_plugin_scanned_Debug
+rule CXX_COMPILER__portail_stream_receiver_plugin_scanned_
   deps = msvc
   command = ${LAUNCHER}${CODE_CHECK}C:\PROGRA~1\MIB055~1\18\COMMUN~1\VC\Tools\MSVC\1451~1.362\bin\Hostx64\x64\cl.exe  /nologo /TP $DEFINES $INCLUDES $FLAGS /showIncludes @$DYNDEP_MODULE_MAP_FILE /Fo$out /Fd$TARGET_COMPILE_PDB /FS -c $in
   description = Building CXX object $out
@@ -190,7 +190,7 @@ rule CXX_COMPILER__portail_stream_receiver_plugin_scanned_Debug
 #############################################
 # Rule for compiling CXX files.
 
-rule CXX_COMPILER__portail_stream_receiver_plugin_unscanned_Debug
+rule CXX_COMPILER__portail_stream_receiver_plugin_unscanned_
   deps = msvc
   command = ${LAUNCHER}${CODE_CHECK}C:\PROGRA~1\MIB055~1\18\COMMUN~1\VC\Tools\MSVC\1451~1.362\bin\Hostx64\x64\cl.exe  /nologo /TP $DEFINES $INCLUDES $FLAGS /showIncludes /Fo$out /Fd$TARGET_COMPILE_PDB /FS -c $in
   description = Building CXX object $out
@@ -199,7 +199,7 @@ rule CXX_COMPILER__portail_stream_receiver_plugin_unscanned_Debug
 #############################################
 # Rule for linking CXX shared library.
 
-rule CXX_SHARED_LIBRARY_LINKER__portail_stream_receiver_plugin_Debug
+rule CXX_SHARED_LIBRARY_LINKER__portail_stream_receiver_plugin_
   command = C:\WINDOWS\system32\cmd.exe /C "$PRE_LINK && "C:\Program Files\CMake\bin\cmake.exe" -E vs_link_dll --msvc-ver=1951 --intdir=$OBJECT_DIR --rc=C:\PROGRA~2\WI3CF2~1\10\bin\100261~1.0\x64\rc.exe --mt=C:\PROGRA~2\WI3CF2~1\10\bin\100261~1.0\x64\mt.exe --manifests $MANIFESTS -- C:\PROGRA~1\MIB055~1\18\COMMUN~1\VC\Tools\MSVC\1451~1.362\bin\Hostx64\x64\link.exe /nologo $in  /out:$TARGET_FILE /implib:$TARGET_IMPLIB /pdb:$TARGET_PDB /dll /version:0.0 $LINK_FLAGS $LINK_PATH $LINK_LIBRARIES && $POST_BUILD"
   description = Linking CXX shared library $TARGET_FILE
   restat = $RESTAT

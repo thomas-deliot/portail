@@ -41,9 +41,11 @@ set(FFMPEG_ROOT "${FFMPEG_ROOT_DEFAULT}" CACHE PATH "FFmpeg prebuilt root")
 
 set(STEAMWORKS_INCLUDE_DIR "${STEAMWORKS_SDK_BASE}/public")
 set(STEAMWORKS_LIB "${STEAMWORKS_SDK_BASE}/redistributable_bin/win64/steam_api64.lib")
-set(STEAMWORKS_DLL "${STEAMWORKS_SDK_BASE}/redistributable_bin/win64/steam_api64.dll")
+set(EXTERNAL_DLL_DIR "${CMAKE_SOURCE_DIR}/external DLLs")
+set(STEAMWORKS_DLL "${EXTERNAL_DLL_DIR}/steam_api64.dll")
 set(STEAMWEBRTC_DLL "")
 foreach(_steamwebrtc_candidate IN ITEMS
+  "${EXTERNAL_DLL_DIR}/steamwebrtc64.dll"
   "${STEAMWORKS_SDK_BASE}/redistributable_bin/win64/steamwebrtc64.dll"
   "C:/Program Files (x86)/Steam/steamwebrtc64.dll"
   "$ENV{ProgramFiles}/Steam/steamwebrtc64.dll"
@@ -57,10 +59,7 @@ endforeach()
 
 set(FFMPEG_INCLUDE_DIR "${FFMPEG_ROOT}/include")
 set(FFMPEG_LIB_DIR "${FFMPEG_ROOT}/lib")
-set(FFMPEG_BIN_DIR "${FFMPEG_ROOT}/bin")
-if(NOT EXISTS "${FFMPEG_BIN_DIR}")
-  set(FFMPEG_BIN_DIR "${CMAKE_SOURCE_DIR}/external DLLs")
-endif()
+set(FFMPEG_BIN_DIR "${EXTERNAL_DLL_DIR}")
 file(GLOB FFMPEG_RUNTIME_DLLS
   "${FFMPEG_BIN_DIR}/av*.dll"
   "${FFMPEG_BIN_DIR}/sw*.dll"
@@ -207,52 +206,31 @@ target_compile_options(portail_stream_receiver_plugin PRIVATE /W4 /EHsc /permiss
 
 option(PORTAIL_STREAM_COPY_TO_UNITY "Copy built Portail Stream DLLs into the Unity Assets plugin folders" ON)
 
-function(copy_runtime_dlls target_name)
-  add_custom_command(
-    TARGET "${target_name}" POST_BUILD
-    COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-      "${STEAMWORKS_DLL}"
-      "$<TARGET_FILE_DIR:${target_name}>/steam_api64.dll"
-    VERBATIM
-  )
-  if(STEAMWEBRTC_DLL)
-    add_custom_command(
-      TARGET "${target_name}" POST_BUILD
-      COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-        "${STEAMWEBRTC_DLL}"
-        "$<TARGET_FILE_DIR:${target_name}>/steamwebrtc64.dll"
-      VERBATIM
-    )
-  endif()
-  foreach(dll IN LISTS FFMPEG_RUNTIME_DLLS)
-    add_custom_command(
-      TARGET "${target_name}" POST_BUILD
-      COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-        "${dll}"
-        "$<TARGET_FILE_DIR:${target_name}>"
-      VERBATIM
-    )
-  endforeach()
-endfunction()
-
-copy_runtime_dlls(portail_stream_common)
-copy_runtime_dlls(portail_stream_sender_plugin)
-copy_runtime_dlls(portail_stream_receiver_plugin)
-
 get_filename_component(PORTAIL_PACKAGE_ROOT "${CMAKE_SOURCE_DIR}/../.." ABSOLUTE)
 set(UNITY_PLUGIN_OUTPUT_DIR "${PORTAIL_PACKAGE_ROOT}/Stream/Plugins")
-function(copy_to_unity_plugins target_name)
-  add_custom_command(
-    TARGET "${target_name}" POST_BUILD
+
+if(PORTAIL_STREAM_COPY_TO_UNITY)
+  add_custom_target(copy_portail_stream_plugins ALL
+    DEPENDS
+      portail_stream_sender_plugin
+      portail_stream_receiver_plugin
+      portail_stream_common
     COMMAND "${CMAKE_COMMAND}" -E make_directory "${UNITY_PLUGIN_OUTPUT_DIR}"
     COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-      "$<TARGET_FILE:${target_name}>"
-      "${UNITY_PLUGIN_OUTPUT_DIR}/$<TARGET_FILE_NAME:${target_name}>"
+      "$<TARGET_FILE:portail_stream_sender_plugin>"
+      "${UNITY_PLUGIN_OUTPUT_DIR}/$<TARGET_FILE_NAME:portail_stream_sender_plugin>"
+    COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+      "$<TARGET_FILE:portail_stream_receiver_plugin>"
+      "${UNITY_PLUGIN_OUTPUT_DIR}/$<TARGET_FILE_NAME:portail_stream_receiver_plugin>"
+    COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+      "$<TARGET_FILE:portail_stream_common>"
+      "${UNITY_PLUGIN_OUTPUT_DIR}/$<TARGET_FILE_NAME:portail_stream_common>"
     VERBATIM
   )
+
   if(STEAMWEBRTC_DLL)
     add_custom_command(
-      TARGET "${target_name}" POST_BUILD
+      TARGET copy_portail_stream_plugins POST_BUILD
       COMMAND "${CMAKE_COMMAND}" -E copy_if_different
         "${STEAMWEBRTC_DLL}"
         "${UNITY_PLUGIN_OUTPUT_DIR}/steamwebrtc64.dll"
@@ -261,19 +239,13 @@ function(copy_to_unity_plugins target_name)
   endif()
   foreach(dll IN LISTS FFMPEG_RUNTIME_DLLS)
     add_custom_command(
-      TARGET "${target_name}" POST_BUILD
+      TARGET copy_portail_stream_plugins POST_BUILD
       COMMAND "${CMAKE_COMMAND}" -E copy_if_different
         "${dll}"
         "${UNITY_PLUGIN_OUTPUT_DIR}"
       VERBATIM
     )
   endforeach()
-endfunction()
-
-if(PORTAIL_STREAM_COPY_TO_UNITY)
-  copy_to_unity_plugins(portail_stream_sender_plugin)
-  copy_to_unity_plugins(portail_stream_receiver_plugin)
-  copy_to_unity_plugins(portail_stream_common)
 endif()
 
 

@@ -54,6 +54,7 @@ namespace Portail.Stream
 			_attempted = true;
 
 			string packageRoot = GetEditorPackageRoot();
+			string nativeExternalDllDir = Path.Combine(packageRoot, "Native~", "portail_stream_plugin", "external DLLs");
 			string streamDir = FindFirstExistingDirectory(
 				Path.Combine(packageRoot, "Stream", "Plugins"),
 				Path.Combine(Application.dataPath, "Portail", "Stream", "Plugins"),
@@ -77,6 +78,7 @@ namespace Portail.Stream
 			);
 
 			string thirdPartyPluginDir = FindFirstExistingDirectory(
+				nativeExternalDllDir,
 				streamDir,
 				Path.Combine(Application.dataPath, "Third Party", "Plugins"),
 				Path.Combine(Application.dataPath, "ThirdParty", "Plugins"),
@@ -87,13 +89,14 @@ namespace Portail.Stream
 			);
 
 			string steamApiPath = FirstExistingFile(
+				Path.Combine(nativeExternalDllDir, "steam_api64.dll"),
 				Path.Combine(facepunchDir ?? string.Empty, "steam_api64.dll"),
 				Path.Combine(streamDir, "steam_api64.dll")
 			);
 
 			if (string.IsNullOrWhiteSpace(steamApiPath))
 			{
-				_lastError = "steam_api64.dll not found in Facepunch or PortailStream plugin folders.";
+				_lastError = "steam_api64.dll not found in Native~/portail_stream_plugin/external DLLs, Facepunch, or PortailStream plugin folders.";
 				Debug.LogError($"[PortailStreamLoader] {_lastError}");
 				return false;
 			}
