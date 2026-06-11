@@ -1,0 +1,19 @@
+{
+    "name": "Portail.Stream.Mirror.Runtime",
+    "rootNamespace": "Portail.Stream.Mirror",
+    "references": [
+        "Portail.Core.Runtime",
+        "Portail.Playback.Runtime",
+        "Portail.Stream.Runtime",
+        "Mirror"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
