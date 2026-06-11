@@ -25,17 +25,17 @@ namespace streamproto::proto
 
 	enum class StreamControlCommand : std::uint8_t
 	{
-		kHostPause = 1,
-		kHostResume = 2,
-		kClientPause = 3,
-		kClientResume = 4,
+		kSenderPause = 1,
+		kSenderResume = 2,
+		kReceiverPause = 3,
+		kReceiverResume = 4,
 	};
 
 	enum class StreamQualityCommand : std::uint8_t
 	{
-		kClientMaxAccepted = 1,
-		kHostAssigned = 2,
-		kClientApplied = 3,
+		kReceiverMaxAccepted = 1,
+		kSenderAssigned = 2,
+		kReceiverApplied = 3,
 	};
 
 	enum class Codec : std::uint16_t
@@ -115,7 +115,7 @@ namespace streamproto::proto
 		PacketHeader header;
 		std::uint32_t sequence;
 		std::uint32_t reserved;
-		std::uint64_t client_send_timestamp_us;
+		std::uint64_t receiver_send_timestamp_us;
 	};
 
 	struct PongMessage
@@ -123,9 +123,9 @@ namespace streamproto::proto
 		PacketHeader header;
 		std::uint32_t sequence;
 		std::uint32_t reserved;
-		std::uint64_t client_send_timestamp_us;
-		std::uint64_t host_recv_timestamp_us;
-		std::uint64_t host_send_timestamp_us;
+		std::uint64_t receiver_send_timestamp_us;
+		std::uint64_t sender_recv_timestamp_us;
+		std::uint64_t sender_send_timestamp_us;
 	};
 
 	struct StreamControlMessage
@@ -150,7 +150,7 @@ namespace streamproto::proto
 		std::uint64_t available_video_lod_mask;
 		std::uint64_t available_audio_lod_mask;
 		std::uint64_t sender_steam_id;
-		// For host assignment and client ACKs, sequence is the video generation
+		// For sender assignment and receiver ACKs, sequence is the video generation
 		// and profile_id is the audio generation.
 		std::uint32_t sequence;
 		std::uint32_t profile_id;

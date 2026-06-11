@@ -39,78 +39,78 @@ namespace Portail.Stream
 		}
 
 		private static readonly ConcurrentQueue<PendingLog> PendingLogs = new ConcurrentQueue<PendingLog>();
-		private static readonly NativeLogCallback HostCallback = OnNativeHostLog;
-		private static readonly NativeLogCallback ClientCallback = OnNativeClientLog;
+		private static readonly NativeLogCallback SenderCallback = OnNativeSenderLog;
+		private static readonly NativeLogCallback ReceiverCallback = OnNativeReceiverLog;
 		private static readonly object RegistrationLock = new object();
-		private static int _hostConsoleLogLevel = (int)PortailStreamNativeConsoleLogLevel.All;
-		private static int _clientConsoleLogLevel = (int)PortailStreamNativeConsoleLogLevel.All;
-		private static bool _hostCallbackRegistered;
-		private static bool _clientCallbackRegistered;
+		private static int _senderConsoleLogLevel = (int)PortailStreamNativeConsoleLogLevel.All;
+		private static int _receiverConsoleLogLevel = (int)PortailStreamNativeConsoleLogLevel.All;
+		private static bool _senderCallbackRegistered;
+		private static bool _receiverCallbackRegistered;
 		private static PortailStreamNativeLogPump _pump;
 
-		[DllImport("portail_stream_host_plugin", CallingConvention = CallingConvention.Cdecl)]
-		private static extern void SSPH_SetLogCallback(NativeLogCallback callback);
+		[DllImport("portail_stream_sender_plugin", CallingConvention = CallingConvention.Cdecl)]
+		private static extern void SSPS_SetLogCallback(NativeLogCallback callback);
 
-		[DllImport("portail_stream_client_plugin", CallingConvention = CallingConvention.Cdecl)]
-		private static extern void SSPC_SetLogCallback(NativeLogCallback callback);
+		[DllImport("portail_stream_receiver_plugin", CallingConvention = CallingConvention.Cdecl)]
+		private static extern void SSPR_SetLogCallback(NativeLogCallback callback);
 
-		public static PortailStreamNativeConsoleLogLevel HostConsoleLogLevel
+		public static PortailStreamNativeConsoleLogLevel SenderConsoleLogLevel
 		{
-			get => (PortailStreamNativeConsoleLogLevel)Volatile.Read(ref _hostConsoleLogLevel);
-			set => Volatile.Write(ref _hostConsoleLogLevel, (int)value);
+			get => (PortailStreamNativeConsoleLogLevel)Volatile.Read(ref _senderConsoleLogLevel);
+			set => Volatile.Write(ref _senderConsoleLogLevel, (int)value);
 		}
 
-		public static PortailStreamNativeConsoleLogLevel ClientConsoleLogLevel
+		public static PortailStreamNativeConsoleLogLevel ReceiverConsoleLogLevel
 		{
-			get => (PortailStreamNativeConsoleLogLevel)Volatile.Read(ref _clientConsoleLogLevel);
-			set => Volatile.Write(ref _clientConsoleLogLevel, (int)value);
+			get => (PortailStreamNativeConsoleLogLevel)Volatile.Read(ref _receiverConsoleLogLevel);
+			set => Volatile.Write(ref _receiverConsoleLogLevel, (int)value);
 		}
 
-		public static void RegisterHostCallback()
+		public static void RegisterSenderCallback()
 		{
 			lock (RegistrationLock)
 			{
-				_hostCallbackRegistered = true;
-				ApplyHostCallback();
+				_senderCallbackRegistered = true;
+				ApplySenderCallback();
 				EnsurePump();
 			}
 		}
 
-		public static void UnregisterHostCallback()
+		public static void UnregisterSenderCallback()
 		{
 			lock (RegistrationLock)
 			{
-				if (!_hostCallbackRegistered)
+				if (!_senderCallbackRegistered)
 				{
 					return;
 				}
 
-				_hostCallbackRegistered = false;
-				ApplyHostCallback();
+				_senderCallbackRegistered = false;
+				ApplySenderCallback();
 			}
 		}
 
-		public static void RegisterClientCallback()
+		public static void RegisterReceiverCallback()
 		{
 			lock (RegistrationLock)
 			{
-				_clientCallbackRegistered = true;
-				ApplyClientCallback();
+				_receiverCallbackRegistered = true;
+				ApplyReceiverCallback();
 				EnsurePump();
 			}
 		}
 
-		public static void UnregisterClientCallback()
+		public static void UnregisterReceiverCallback()
 		{
 			lock (RegistrationLock)
 			{
-				if (!_clientCallbackRegistered)
+				if (!_receiverCallbackRegistered)
 				{
 					return;
 				}
 
-				_clientCallbackRegistered = false;
-				ApplyClientCallback();
+				_receiverCallbackRegistered = false;
+				ApplyReceiverCallback();
 			}
 		}
 
@@ -135,14 +135,14 @@ namespace Portail.Stream
 			}
 		}
 
-		private static void OnNativeHostLog(int level, IntPtr messagePtr)
+		private static void OnNativeSenderLog(int level, IntPtr messagePtr)
 		{
-			OnNativeLog(level, messagePtr, HostConsoleLogLevel);
+			OnNativeLog(level, messagePtr, SenderConsoleLogLevel);
 		}
 
-		private static void OnNativeClientLog(int level, IntPtr messagePtr)
+		private static void OnNativeReceiverLog(int level, IntPtr messagePtr)
 		{
-			OnNativeLog(level, messagePtr, ClientConsoleLogLevel);
+			OnNativeLog(level, messagePtr, ReceiverConsoleLogLevel);
 		}
 
 		private static void OnNativeLog(int level, IntPtr messagePtr, PortailStreamNativeConsoleLogLevel consoleLogLevel)
@@ -192,11 +192,11 @@ namespace Portail.Stream
 			};
 		}
 
-		private static void ApplyHostCallback()
+		private static void ApplySenderCallback()
 		{
 			try
 			{
-				SSPH_SetLogCallback(_hostCallbackRegistered ? HostCallback : null);
+				SSPS_SetLogCallback(_senderCallbackRegistered ? SenderCallback : null);
 			}
 			catch (Exception ex) when (ex is DllNotFoundException || ex is EntryPointNotFoundException || ex is BadImageFormatException)
 			{
@@ -204,11 +204,11 @@ namespace Portail.Stream
 			}
 		}
 
-		private static void ApplyClientCallback()
+		private static void ApplyReceiverCallback()
 		{
 			try
 			{
-				SSPC_SetLogCallback(_clientCallbackRegistered ? ClientCallback : null);
+				SSPR_SetLogCallback(_receiverCallbackRegistered ? ReceiverCallback : null);
 			}
 			catch (Exception ex) when (ex is DllNotFoundException || ex is EntryPointNotFoundException || ex is BadImageFormatException)
 			{

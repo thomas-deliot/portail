@@ -29,8 +29,8 @@ namespace Portail.Stream
 
 			try
 			{
-				return PortailStreamHostNative.SSPH_IsRunning() ||
-					   PortailStreamClientNative.SSPC_IsRunning();
+				return PortailStreamSenderNative.SSPS_IsRunning() ||
+					   PortailStreamReceiverNative.SSPR_IsRunning();
 			}
 			catch (Exception ex) when (ex is DllNotFoundException || ex is EntryPointNotFoundException || ex is BadImageFormatException)
 			{
@@ -114,8 +114,8 @@ namespace Portail.Stream
 				Path.Combine(thirdPartyPluginDir, "avcodec-62.dll"),
 				Path.Combine(thirdPartyPluginDir, "steamwebrtc64.dll"),
 				Path.Combine(streamDir, "portail_stream_common.dll"),
-				Path.Combine(streamDir, "portail_stream_host_plugin.dll"),
-				Path.Combine(streamDir, "portail_stream_client_plugin.dll"),
+				Path.Combine(streamDir, "portail_stream_sender_plugin.dll"),
+				Path.Combine(streamDir, "portail_stream_receiver_plugin.dll"),
 			};
 
 			for (int i = 0; i < requiredFiles.Count; ++i)
@@ -139,8 +139,8 @@ namespace Portail.Stream
 					LoadLibraryW(requiredFiles[i]);
 				}
 
-				PortailStreamHostNative.SSPH_IsRunning();
-				PortailStreamClientNative.SSPC_IsRunning();
+				PortailStreamSenderNative.SSPS_IsRunning();
+				PortailStreamReceiverNative.SSPR_IsRunning();
 			}
 			catch (Exception ex) when (ex is DllNotFoundException || ex is EntryPointNotFoundException || ex is BadImageFormatException)
 			{

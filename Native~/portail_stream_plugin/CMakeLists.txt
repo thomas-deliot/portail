@@ -109,32 +109,32 @@ set(COMMON_HEADERS
   src/common/steam_sdr.h
   src/common/time_utils.h
   src/common/unity_texture_copy.h
-  src/plugin/client_plugin_api.h
-  src/plugin/host_plugin_api.h
-  src/client/client_audio_pipeline.h
-  src/client/client_connection_state.h
-  src/client/client_peer_state.h
-  src/client/client_protocol_sender.h
-  src/client/client_quality_state.h
-  src/client/client_stats.h
-  src/client/ffmpeg_decoder.h
-  src/client/frame_assembler.h
-  src/client/gpu_texture_bridge.h
-  src/client/recovery_unit.h
-  src/client/client_video_decode_queue.h
-  src/client/client_video_state.h
-  src/host/encoded_packet.h
-  src/host/ffmpeg_encoder.h
-  src/host/host_lod_config.h
-  src/host/host_media_sender.h
-  src/host/host_peer_sender.h
-  src/host/host_options.h
-  src/host/host_route_state.h
-  src/host/host_runtime_state.h
-  src/host/host_stats.h
-  src/host/sdr_queue_status.h
-  src/host/shared_texture_mirror.h
-  src/host/virtual_desktop_capture_bridge.h
+  src/plugin/receiver_plugin_api.h
+  src/plugin/sender_plugin_api.h
+  src/receiver/receiver_audio_pipeline.h
+  src/receiver/receiver_connection_state.h
+  src/receiver/receiver_peer_state.h
+  src/receiver/receiver_protocol_sender.h
+  src/receiver/receiver_quality_state.h
+  src/receiver/receiver_stats.h
+  src/receiver/ffmpeg_decoder.h
+  src/receiver/frame_assembler.h
+  src/receiver/gpu_texture_bridge.h
+  src/receiver/recovery_unit.h
+  src/receiver/receiver_video_decode_queue.h
+  src/receiver/receiver_video_state.h
+  src/sender/encoded_packet.h
+  src/sender/ffmpeg_encoder.h
+  src/sender/sender_lod_config.h
+  src/sender/sender_media_sender.h
+  src/sender/sender_peer_sender.h
+  src/sender/sender_options.h
+  src/sender/sender_route_state.h
+  src/sender/sender_runtime_state.h
+  src/sender/sender_stats.h
+  src/sender/sdr_queue_status.h
+  src/sender/shared_texture_mirror.h
+  src/sender/virtual_desktop_capture_bridge.h
 )
 
 set(UNITY_NATIVE_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/../unitywebrtc_steamworks/Plugin~/unity/include")
@@ -194,16 +194,16 @@ target_link_libraries(stream_audio
     "${FFMPEG_LIB_DIR}/swresample.lib"
     "${FFMPEG_LIB_DIR}/swscale.lib"
 )
-add_library(portail_stream_host_plugin SHARED src/plugin/host_plugin.cpp)
-target_link_libraries(portail_stream_host_plugin PRIVATE portail_stream_common stream_audio)
-target_include_directories(portail_stream_host_plugin PRIVATE "${UNITY_NATIVE_INCLUDE_DIR}")
-target_compile_definitions(portail_stream_host_plugin PRIVATE PORTAIL_STREAM_PLUGIN_BUILD)
-target_compile_options(portail_stream_host_plugin PRIVATE /W4 /EHsc /permissive-)
+add_library(portail_stream_sender_plugin SHARED src/plugin/sender_plugin.cpp)
+target_link_libraries(portail_stream_sender_plugin PRIVATE portail_stream_common stream_audio)
+target_include_directories(portail_stream_sender_plugin PRIVATE "${UNITY_NATIVE_INCLUDE_DIR}")
+target_compile_definitions(portail_stream_sender_plugin PRIVATE PORTAIL_STREAM_PLUGIN_BUILD)
+target_compile_options(portail_stream_sender_plugin PRIVATE /W4 /EHsc /permissive-)
 
-add_library(portail_stream_client_plugin SHARED src/plugin/client_plugin.cpp)
-target_link_libraries(portail_stream_client_plugin PRIVATE portail_stream_common stream_audio)
-target_include_directories(portail_stream_client_plugin PRIVATE "${UNITY_NATIVE_INCLUDE_DIR}")
-target_compile_options(portail_stream_client_plugin PRIVATE /W4 /EHsc /permissive-)
+add_library(portail_stream_receiver_plugin SHARED src/plugin/receiver_plugin.cpp)
+target_link_libraries(portail_stream_receiver_plugin PRIVATE portail_stream_common stream_audio)
+target_include_directories(portail_stream_receiver_plugin PRIVATE "${UNITY_NATIVE_INCLUDE_DIR}")
+target_compile_options(portail_stream_receiver_plugin PRIVATE /W4 /EHsc /permissive-)
 
 option(PORTAIL_STREAM_COPY_TO_UNITY "Copy built Portail Stream DLLs into the Unity Assets plugin folders" ON)
 
@@ -236,8 +236,8 @@ function(copy_runtime_dlls target_name)
 endfunction()
 
 copy_runtime_dlls(portail_stream_common)
-copy_runtime_dlls(portail_stream_host_plugin)
-copy_runtime_dlls(portail_stream_client_plugin)
+copy_runtime_dlls(portail_stream_sender_plugin)
+copy_runtime_dlls(portail_stream_receiver_plugin)
 
 get_filename_component(PORTAIL_PACKAGE_ROOT "${CMAKE_SOURCE_DIR}/../.." ABSOLUTE)
 set(UNITY_PLUGIN_OUTPUT_DIR "${PORTAIL_PACKAGE_ROOT}/Stream/Plugins")
@@ -271,8 +271,8 @@ function(copy_to_unity_plugins target_name)
 endfunction()
 
 if(PORTAIL_STREAM_COPY_TO_UNITY)
-  copy_to_unity_plugins(portail_stream_host_plugin)
-  copy_to_unity_plugins(portail_stream_client_plugin)
+  copy_to_unity_plugins(portail_stream_sender_plugin)
+  copy_to_unity_plugins(portail_stream_receiver_plugin)
   copy_to_unity_plugins(portail_stream_common)
 endif()
 

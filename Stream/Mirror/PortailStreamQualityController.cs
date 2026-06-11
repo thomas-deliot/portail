@@ -9,7 +9,7 @@ using UnityEngine.Serialization;
 namespace Portail.Stream.Mirror
 {
 	/// <summary>
-	/// Client-side, scene-driven quality governor for received Steam desktop streams.
+	/// Receiver-side, scene-driven quality governor for received Steam desktop streams.
 	///
 	/// This component is intentionally standalone: disable it to stop automatic quality decisions.
 	/// It never talks to the native plugin directly. It only drives MirrorPortailStreamReceiver's
@@ -19,7 +19,7 @@ namespace Portail.Stream.Mirror
 	[DisallowMultipleComponent]
 	public sealed class PortailStreamQualityController : MonoBehaviour
 	{
-		sealed class RemoteHostState
+		sealed class RemoteSenderState
 		{
 			public bool capturedRestoreLods;
 			public int restoreVideoLod = PortailStreamLodUtility.Highest;
@@ -35,10 +35,10 @@ namespace Portail.Stream.Mirror
 			public int lastIdealAudioLod = PortailStreamLodUtility.Off;
 		}
 
-		sealed class RemoteHostBudgetDecision
+		sealed class RemoteSenderBudgetDecision
 		{
-			public ulong hostSteamId;
-			public RemoteHostState state;
+			public ulong senderSteamId;
+			public RemoteSenderState state;
 			public int connectionPath;
 			public int nextVideoLod = PortailStreamLodUtility.Off;
 			public int nextAudioLod = PortailStreamLodUtility.Off;
@@ -57,13 +57,13 @@ namespace Portail.Stream.Mirror
 		const float GoodDesktopBitsPerPixelPerFrame = 0.10f;
 
 		[Header("References")]
-		[Tooltip("Client manager to drive. If left empty, MirrorPortailStreamReceiver.Instance is used, then a scene search fallback.")]
-		public MirrorPortailStreamReceiver clientManager;
+		[Tooltip("Receiver manager to drive. If left empty, MirrorPortailStreamReceiver.Instance is used, then a scene search fallback.")]
+		public MirrorPortailStreamReceiver receiverManager;
 
-		[Tooltip("LOD table reference. Because all hosts use the same LOD table, this is used to read each video LOD's target bitrate. If empty, MirrorPortailStreamSender.Instance or default LODs are used.")]
-		public MirrorPortailStreamSender hostLodReference;
+		[Tooltip("LOD table reference. Because all senders use the same LOD table, this is used to read each video LOD's target bitrate. If empty, MirrorPortailStreamSender.Instance or default LODs are used.")]
+		public MirrorPortailStreamSender senderLodReference;
 
-		[Tooltip("Camera used to measure how large remote stream displays are on this client. If empty, Camera.main and active cameras are used.")]
+		[Tooltip("Camera used to measure how large remote stream displays are on this receiver. If empty, Camera.main and active cameras are used.")]
 		public Camera viewCamera;
 
 		[Tooltip("Listener used for spatial audio audibility checks. If empty, this is resolved from the camera, then the active scene AudioListener.")]
@@ -106,35 +106,35 @@ namespace Portail.Stream.Mirror
 		public float maxTotalDownloadBandwidthMbps;
 
 		[Header("Per-Path Bandwidth")]
-		[Tooltip("When a host connection is routed through Steam Datagram Relay instead of ICE/direct, cap that host's total video+audio media bitrate.")]
+		[Tooltip("When a sender connection is routed through Steam Datagram Relay instead of ICE/direct, cap that sender's total video+audio media bitrate.")]
 		public bool applySdrBandwidthLimit = true;
 
 		[Min(0f)]
-		[Tooltip("Per-host total video+audio media bitrate cap in Mbps while the Steam path reports SDR. Set to 0 to disable the SDR cap.")]
-		public float sdrPerHostBandwidthMbps = 7f;
+		[Tooltip("Per-sender total video+audio media bitrate cap in Mbps while the Steam path reports SDR. Set to 0 to disable the SDR cap.")]
+		public float sdrPerSenderBandwidthMbps = 7f;
 
 		[Header("Lifecycle")]
-		[Tooltip("Restore each remote host's previous max accepted video/audio LODs when this component is disabled.")]
+		[Tooltip("Restore each remote sender's previous max accepted video/audio LODs when this component is disabled.")]
 		public bool restoreQualitiesOnDisable = true;
 
 		[Header("Debug")]
 		public bool logQualityChanges;
 
-		[Tooltip("Logs each host's measured visible pixel area every decision tick. Useful while validating camera/projection behavior; leave disabled in normal play.")]
+		[Tooltip("Logs each sender's measured visible pixel area every decision tick. Useful while validating camera/projection behavior; leave disabled in normal play.")]
 		public bool logVideoAreaEveryUpdate;
 
-		readonly Dictionary<ulong, RemoteHostState> _states = new Dictionary<ulong, RemoteHostState>();
-		readonly List<ulong> _knownHosts = new List<ulong>();
-		readonly List<ulong> _staleHosts = new List<ulong>();
+		readonly Dictionary<ulong, RemoteSenderState> _states = new Dictionary<ulong, RemoteSenderState>();
+		readonly List<ulong> _knownSenders = new List<ulong>();
+		readonly List<ulong> _staleSenders = new List<ulong>();
 		readonly HashSet<AudioSource> _audioSourcesVisited = new HashSet<AudioSource>();
 		readonly Vector3[] _localScreenCorners = new Vector3[4];
 		readonly List<Vector3> _worldPolygon = new List<Vector3>(8);
 		readonly List<Vector3> _worldClipScratch = new List<Vector3>(8);
 		readonly List<Vector2> _viewportPolygon = new List<Vector2>(8);
 		readonly List<Vector2> _viewportClipScratch = new List<Vector2>(8);
-		readonly List<RemoteHostBudgetDecision> _budgetDecisions = new List<RemoteHostBudgetDecision>();
-		readonly List<PortailStreamVideoLodConfig> _defaultVideoLods = PortailStreamHostPlugin.CreateDefaultVideoLods();
-		readonly List<PortailStreamAudioLodConfig> _defaultAudioLods = PortailStreamHostPlugin.CreateDefaultAudioLods();
+		readonly List<RemoteSenderBudgetDecision> _budgetDecisions = new List<RemoteSenderBudgetDecision>();
+		readonly List<PortailStreamVideoLodConfig> _defaultVideoLods = PortailStreamSenderPlugin.CreateDefaultVideoLods();
+		readonly List<PortailStreamAudioLodConfig> _defaultAudioLods = PortailStreamSenderPlugin.CreateDefaultAudioLods();
 
 		PortailFeedPlayback[] _streamPlayers = Array.Empty<PortailFeedPlayback>();
 		float _nextUpdateAt;
@@ -164,7 +164,7 @@ namespace Portail.Stream.Mirror
 			minimumVisiblePixelArea = Mathf.Max(0f, minimumVisiblePixelArea);
 			audibleVolumeThreshold = Mathf.Clamp01(audibleVolumeThreshold);
 			maxTotalDownloadBandwidthMbps = Mathf.Max(0f, maxTotalDownloadBandwidthMbps);
-			sdrPerHostBandwidthMbps = Mathf.Max(0f, sdrPerHostBandwidthMbps);
+			sdrPerSenderBandwidthMbps = Mathf.Max(0f, sdrPerSenderBandwidthMbps);
 		}
 
 		void LateUpdate()
@@ -182,77 +182,77 @@ namespace Portail.Stream.Mirror
 				RefreshStreamPlayers();
 			}
 
-			UpdateRemoteHostQualities();
+			UpdateRemoteSenderQualities();
 		}
 
-		public bool IsVideoForcedOff(ulong hostSteamId)
+		public bool IsVideoForcedOff(ulong senderSteamId)
 		{
-			return hostSteamId != 0 &&
-				_states.TryGetValue(hostSteamId, out RemoteHostState state) &&
+			return senderSteamId != 0 &&
+				_states.TryGetValue(senderSteamId, out RemoteSenderState state) &&
 				state.forceVideoOff;
 		}
 
-		public bool IsAudioForcedOff(ulong hostSteamId)
+		public bool IsAudioForcedOff(ulong senderSteamId)
 		{
-			return hostSteamId != 0 &&
-				_states.TryGetValue(hostSteamId, out RemoteHostState state) &&
+			return senderSteamId != 0 &&
+				_states.TryGetValue(senderSteamId, out RemoteSenderState state) &&
 				state.forceAudioOff;
 		}
 
-		public bool ToggleVideoForcedOff(ulong hostSteamId)
+		public bool ToggleVideoForcedOff(ulong senderSteamId)
 		{
-			bool next = !IsVideoForcedOff(hostSteamId);
-			SetVideoForcedOff(hostSteamId, next);
+			bool next = !IsVideoForcedOff(senderSteamId);
+			SetVideoForcedOff(senderSteamId, next);
 			return next;
 		}
 
-		public bool ToggleAudioForcedOff(ulong hostSteamId)
+		public bool ToggleAudioForcedOff(ulong senderSteamId)
 		{
-			bool next = !IsAudioForcedOff(hostSteamId);
-			SetAudioForcedOff(hostSteamId, next);
+			bool next = !IsAudioForcedOff(senderSteamId);
+			SetAudioForcedOff(senderSteamId, next);
 			return next;
 		}
 
-		public void SetVideoForcedOff(ulong hostSteamId, bool forcedOff)
+		public void SetVideoForcedOff(ulong senderSteamId, bool forcedOff)
 		{
-			if (hostSteamId == 0)
+			if (senderSteamId == 0)
 				return;
 
 			ResolveReferences();
-			if (clientManager == null)
+			if (receiverManager == null)
 				return;
 
-			RemoteHostState state = GetOrCreateState(hostSteamId);
-			CaptureRestoreLodsIfNeeded(hostSteamId, state);
+			RemoteSenderState state = GetOrCreateState(senderSteamId);
+			CaptureRestoreLodsIfNeeded(senderSteamId, state);
 			if (state.forceVideoOff == forcedOff)
 				return;
 
 			state.forceVideoOff = forcedOff;
 			if (forcedOff)
-				ApplyVideoLod(hostSteamId, state, PortailStreamLodUtility.Off);
+				ApplyVideoLod(senderSteamId, state, PortailStreamLodUtility.Off);
 			else
 				state.appliedVideoLod = UnsetLod;
 
 			_nextUpdateAt = 0f;
 		}
 
-		public void SetAudioForcedOff(ulong hostSteamId, bool forcedOff)
+		public void SetAudioForcedOff(ulong senderSteamId, bool forcedOff)
 		{
-			if (hostSteamId == 0)
+			if (senderSteamId == 0)
 				return;
 
 			ResolveReferences();
-			if (clientManager == null)
+			if (receiverManager == null)
 				return;
 
-			RemoteHostState state = GetOrCreateState(hostSteamId);
-			CaptureRestoreLodsIfNeeded(hostSteamId, state);
+			RemoteSenderState state = GetOrCreateState(senderSteamId);
+			CaptureRestoreLodsIfNeeded(senderSteamId, state);
 			if (state.forceAudioOff == forcedOff)
 				return;
 
 			state.forceAudioOff = forcedOff;
 			if (forcedOff)
-				ApplyAudioLod(hostSteamId, state, PortailStreamLodUtility.Off);
+				ApplyAudioLod(senderSteamId, state, PortailStreamLodUtility.Off);
 			else
 				state.appliedAudioLod = UnsetLod;
 
@@ -261,18 +261,18 @@ namespace Portail.Stream.Mirror
 
 		void ResolveReferences()
 		{
-			if (clientManager == null)
+			if (receiverManager == null)
 			{
-				clientManager = MirrorPortailStreamReceiver.Instance;
-				if (clientManager == null)
-					clientManager = FindFirstObjectByType<MirrorPortailStreamReceiver>();
+				receiverManager = MirrorPortailStreamReceiver.Instance;
+				if (receiverManager == null)
+					receiverManager = FindFirstObjectByType<MirrorPortailStreamReceiver>();
 			}
 
-			if (hostLodReference == null)
+			if (senderLodReference == null)
 			{
-				hostLodReference = MirrorPortailStreamSender.Instance;
-				if (hostLodReference == null)
-					hostLodReference = FindFirstObjectByType<MirrorPortailStreamSender>();
+				senderLodReference = MirrorPortailStreamSender.Instance;
+				if (senderLodReference == null)
+					senderLodReference = FindFirstObjectByType<MirrorPortailStreamSender>();
 			}
 
 			if (!IsUsableCamera(viewCamera))
@@ -344,27 +344,27 @@ namespace Portail.Stream.Mirror
 			_streamPlayers = FindObjectsByType<PortailFeedPlayback>(FindObjectsSortMode.None);
 		}
 
-		void UpdateRemoteHostQualities()
+		void UpdateRemoteSenderQualities()
 		{
-			if (clientManager == null)
+			if (receiverManager == null)
 				return;
 
-			clientManager.GetKnownRemoteHostSteamIds(_knownHosts);
-			PruneStaleHosts();
+			receiverManager.GetKnownRemoteSenderSteamIds(_knownSenders);
+			PruneStaleSenders();
 
 			_budgetDecisions.Clear();
-			for (int i = 0; i < _knownHosts.Count; ++i)
+			for (int i = 0; i < _knownSenders.Count; ++i)
 			{
-				ulong hostSteamId = _knownHosts[i];
-				if (hostSteamId == 0)
+				ulong senderSteamId = _knownSenders[i];
+				if (senderSteamId == 0)
 					continue;
 
-				RemoteHostState state = GetOrCreateState(hostSteamId);
-				CaptureRestoreLodsIfNeeded(hostSteamId, state);
-				int connectionPath = GetConnectionPathForHost(hostSteamId);
+				RemoteSenderState state = GetOrCreateState(senderSteamId);
+				CaptureRestoreLodsIfNeeded(senderSteamId, state);
+				int connectionPath = GetConnectionPathForSender(senderSteamId);
 
-				float projectedPixelArea = ComputeLargestProjectedPixelAreaForHost(hostSteamId);
-				float estimatedAudioVolume = ComputeHighestEstimatedAudioVolumeForHost(hostSteamId);
+				float projectedPixelArea = ComputeLargestProjectedPixelAreaForSender(senderSteamId);
+				float estimatedAudioVolume = ComputeHighestEstimatedAudioVolumeForSender(senderSteamId);
 
 				float requiredVideoBitrateKbps = projectedPixelArea >= minimumVisiblePixelArea
 					? ComputeRequiredVideoBitrateKbps(projectedPixelArea)
@@ -384,14 +384,14 @@ namespace Portail.Stream.Mirror
 
 				if (logVideoAreaEveryUpdate)
 				{
-					Debug.Log($"[PortailStreamQualityController] Host {hostSteamId} visible pixels {projectedPixelArea:0.0}, " +
+					Debug.Log($"[PortailStreamQualityController] Sender {senderSteamId} visible pixels {projectedPixelArea:0.0}, " +
 						$"required bitrate {requiredVideoBitrateKbps:0} kbps, ideal video {PortailStreamLodUtility.ToVideoLabel(idealVideoLod)}, " +
 						$"camera {(viewCamera != null ? viewCamera.name : "none")}");
 				}
 
-				_budgetDecisions.Add(new RemoteHostBudgetDecision
+				_budgetDecisions.Add(new RemoteSenderBudgetDecision
 				{
-					hostSteamId = hostSteamId,
+					senderSteamId = senderSteamId,
 					state = state,
 					connectionPath = connectionPath,
 					nextVideoLod = idealVideoLod,
@@ -407,66 +407,66 @@ namespace Portail.Stream.Mirror
 
 			for (int i = 0; i < _budgetDecisions.Count; ++i)
 			{
-				RemoteHostBudgetDecision decision = _budgetDecisions[i];
+				RemoteSenderBudgetDecision decision = _budgetDecisions[i];
 				if (decision.state.forceVideoOff)
 					decision.nextVideoLod = PortailStreamLodUtility.Off;
 				if (decision.state.forceAudioOff)
 					decision.nextAudioLod = PortailStreamLodUtility.Off;
 
-				ApplyVideoLod(decision.hostSteamId, decision.state, decision.nextVideoLod);
-				ApplyAudioLod(decision.hostSteamId, decision.state, decision.nextAudioLod);
+				ApplyVideoLod(decision.senderSteamId, decision.state, decision.nextVideoLod);
+				ApplyAudioLod(decision.senderSteamId, decision.state, decision.nextAudioLod);
 			}
 		}
 
-		void PruneStaleHosts()
+		void PruneStaleSenders()
 		{
-			_staleHosts.Clear();
-			foreach (ulong hostSteamId in _states.Keys)
+			_staleSenders.Clear();
+			foreach (ulong senderSteamId in _states.Keys)
 			{
-				if (!_knownHosts.Contains(hostSteamId))
-					_staleHosts.Add(hostSteamId);
+				if (!_knownSenders.Contains(senderSteamId))
+					_staleSenders.Add(senderSteamId);
 			}
 
-			for (int i = 0; i < _staleHosts.Count; ++i)
+			for (int i = 0; i < _staleSenders.Count; ++i)
 			{
-				ulong hostSteamId = _staleHosts[i];
-				if (restoreQualitiesOnDisable && _states.TryGetValue(hostSteamId, out RemoteHostState state))
-					RestoreRemoteQuality(hostSteamId, state);
+				ulong senderSteamId = _staleSenders[i];
+				if (restoreQualitiesOnDisable && _states.TryGetValue(senderSteamId, out RemoteSenderState state))
+					RestoreRemoteQuality(senderSteamId, state);
 
-				_states.Remove(hostSteamId);
+				_states.Remove(senderSteamId);
 			}
 		}
 
-		RemoteHostState GetOrCreateState(ulong hostSteamId)
+		RemoteSenderState GetOrCreateState(ulong senderSteamId)
 		{
-			if (!_states.TryGetValue(hostSteamId, out RemoteHostState state))
+			if (!_states.TryGetValue(senderSteamId, out RemoteSenderState state))
 			{
-				state = new RemoteHostState();
-				_states.Add(hostSteamId, state);
+				state = new RemoteSenderState();
+				_states.Add(senderSteamId, state);
 			}
 
 			return state;
 		}
 
-		void CaptureRestoreLodsIfNeeded(ulong hostSteamId, RemoteHostState state)
+		void CaptureRestoreLodsIfNeeded(ulong senderSteamId, RemoteSenderState state)
 		{
-			if (state.capturedRestoreLods || clientManager == null)
+			if (state.capturedRestoreLods || receiverManager == null)
 				return;
 
-			state.restoreVideoLod = clientManager.GetMaxAcceptedVideoLod(hostSteamId);
-			state.restoreAudioLod = clientManager.GetMaxAcceptedAudioLod(hostSteamId);
+			state.restoreVideoLod = receiverManager.GetMaxAcceptedVideoLod(senderSteamId);
+			state.restoreAudioLod = receiverManager.GetMaxAcceptedAudioLod(senderSteamId);
 			state.appliedVideoLod = state.restoreVideoLod;
 			state.appliedAudioLod = state.restoreAudioLod;
 			state.capturedRestoreLods = true;
 		}
 
-		int GetConnectionPathForHost(ulong hostSteamId)
+		int GetConnectionPathForSender(ulong senderSteamId)
 		{
-			if (clientManager == null || hostSteamId == 0)
+			if (receiverManager == null || senderSteamId == 0)
 				return 0;
 
-			if (clientManager.TryGetPeerStatsObject(hostSteamId, out object statsObject) &&
-				statsObject is PortailStreamClientPeerStats stats &&
+			if (receiverManager.TryGetPeerStatsObject(senderSteamId, out object statsObject) &&
+				statsObject is PortailStreamReceiverPeerStats stats &&
 				stats.connected != 0)
 			{
 				return stats.connection_path;
@@ -475,7 +475,7 @@ namespace Portail.Stream.Mirror
 			return 0;
 		}
 
-		float ComputeLargestProjectedPixelAreaForHost(ulong hostSteamId)
+		float ComputeLargestProjectedPixelAreaForSender(ulong senderSteamId)
 		{
 			if (viewCamera == null || _streamPlayers == null || _streamPlayers.Length == 0)
 				return 0f;
@@ -484,7 +484,7 @@ namespace Portail.Stream.Mirror
 			for (int i = 0; i < _streamPlayers.Length; ++i)
 			{
 				PortailFeedPlayback player = _streamPlayers[i];
-				if (!IsPlayerShowingHost(player, hostSteamId))
+				if (!IsPlayerShowingSender(player, senderSteamId))
 					continue;
 
 				float area = ComputeProjectedPixelArea(viewCamera, player.ScreenDisplaySurface);
@@ -777,16 +777,16 @@ namespace Portail.Stream.Mirror
 
 		IList<PortailStreamVideoLodConfig> GetVideoLods()
 		{
-			if (hostLodReference != null && hostLodReference.videoLods != null && hostLodReference.videoLods.Count > 0)
-				return hostLodReference.videoLods;
+			if (senderLodReference != null && senderLodReference.videoLods != null && senderLodReference.videoLods.Count > 0)
+				return senderLodReference.videoLods;
 
 			return _defaultVideoLods;
 		}
 
 		IList<PortailStreamAudioLodConfig> GetAudioLods()
 		{
-			if (hostLodReference != null && hostLodReference.audioLods != null && hostLodReference.audioLods.Count > 0)
-				return hostLodReference.audioLods;
+			if (senderLodReference != null && senderLodReference.audioLods != null && senderLodReference.audioLods.Count > 0)
+				return senderLodReference.audioLods;
 
 			return _defaultAudioLods;
 		}
@@ -876,31 +876,31 @@ namespace Portail.Stream.Mirror
 			return nextLower;
 		}
 
-		void ApplySdrPathBudgets(List<RemoteHostBudgetDecision> decisions)
+		void ApplySdrPathBudgets(List<RemoteSenderBudgetDecision> decisions)
 		{
 			if (!HasSdrPathBudget())
 				return;
 
-			float limitKbps = Mathf.Max(0f, sdrPerHostBandwidthMbps) * 1000f;
+			float limitKbps = Mathf.Max(0f, sdrPerSenderBandwidthMbps) * 1000f;
 			if (limitKbps <= 0f)
 				return;
 
 			for (int i = 0; i < decisions.Count; ++i)
 			{
-				RemoteHostBudgetDecision decision = decisions[i];
+				RemoteSenderBudgetDecision decision = decisions[i];
 				if (!IsSdrConnectionPath(decision.connectionPath))
 					continue;
 
-				ApplyPerHostPathBudget(decision, limitKbps);
+				ApplyPerSenderPathBudget(decision, limitKbps);
 			}
 		}
 
 		bool HasSdrPathBudget()
 		{
-			return applySdrBandwidthLimit && sdrPerHostBandwidthMbps > 0f;
+			return applySdrBandwidthLimit && sdrPerSenderBandwidthMbps > 0f;
 		}
 
-		void ApplyPerHostPathBudget(RemoteHostBudgetDecision decision, float limitKbps)
+		void ApplyPerSenderPathBudget(RemoteSenderBudgetDecision decision, float limitKbps)
 		{
 			int guard = CountUsableVideoLods() + CountUsableAudioLods() + 4;
 			while (guard-- > 0 && EstimateDecisionMediaKbps(decision) > limitKbps + 0.1f)
@@ -915,12 +915,12 @@ namespace Portail.Stream.Mirror
 			}
 		}
 
-		float EstimateDecisionMediaKbps(RemoteHostBudgetDecision decision)
+		float EstimateDecisionMediaKbps(RemoteSenderBudgetDecision decision)
 		{
 			return EstimateVideoLodBitrateKbps(decision.nextVideoLod) + EstimateAudioLodBitrateKbps(decision.nextAudioLod);
 		}
 
-		bool TryLowerVideoForDecision(RemoteHostBudgetDecision decision)
+		bool TryLowerVideoForDecision(RemoteSenderBudgetDecision decision)
 		{
 			float currentKbps = EstimateVideoLodBitrateKbps(decision.nextVideoLod);
 			if (currentKbps <= 0f)
@@ -935,7 +935,7 @@ namespace Portail.Stream.Mirror
 			return true;
 		}
 
-		bool TryLowerAudioForDecision(RemoteHostBudgetDecision decision)
+		bool TryLowerAudioForDecision(RemoteSenderBudgetDecision decision)
 		{
 			float currentKbps = EstimateAudioLodBitrateKbps(decision.nextAudioLod);
 			if (currentKbps <= 0f)
@@ -955,7 +955,7 @@ namespace Portail.Stream.Mirror
 			return connectionPath == ConnectionPathSdr;
 		}
 
-		void ApplyDownloadBudget(List<RemoteHostBudgetDecision> decisions)
+		void ApplyDownloadBudget(List<RemoteSenderBudgetDecision> decisions)
 		{
 			float limitKbps = Mathf.Max(0f, maxTotalDownloadBandwidthMbps) * 1000f;
 			if (limitKbps <= 0f)
@@ -974,7 +974,7 @@ namespace Portail.Stream.Mirror
 			}
 		}
 
-		float EstimateTotalDownloadKbps(List<RemoteHostBudgetDecision> decisions)
+		float EstimateTotalDownloadKbps(List<RemoteSenderBudgetDecision> decisions)
 		{
 			float total = 0f;
 			for (int i = 0; i < decisions.Count; ++i)
@@ -986,7 +986,7 @@ namespace Portail.Stream.Mirror
 			return total;
 		}
 
-		bool TryLowerLowestPriorityVideo(List<RemoteHostBudgetDecision> decisions)
+		bool TryLowerLowestPriorityVideo(List<RemoteSenderBudgetDecision> decisions)
 		{
 			int bestIndex = -1;
 			int bestNextLod = PortailStreamLodUtility.Off;
@@ -995,7 +995,7 @@ namespace Portail.Stream.Mirror
 
 			for (int i = 0; i < decisions.Count; ++i)
 			{
-				RemoteHostBudgetDecision decision = decisions[i];
+				RemoteSenderBudgetDecision decision = decisions[i];
 				float currentKbps = EstimateVideoLodBitrateKbps(decision.nextVideoLod);
 				if (currentKbps <= 0f)
 					continue;
@@ -1023,7 +1023,7 @@ namespace Portail.Stream.Mirror
 			return true;
 		}
 
-		bool TryLowerLowestPriorityAudio(List<RemoteHostBudgetDecision> decisions)
+		bool TryLowerLowestPriorityAudio(List<RemoteSenderBudgetDecision> decisions)
 		{
 			int bestIndex = -1;
 			int bestNextLod = PortailStreamLodUtility.Off;
@@ -1032,7 +1032,7 @@ namespace Portail.Stream.Mirror
 
 			for (int i = 0; i < decisions.Count; ++i)
 			{
-				RemoteHostBudgetDecision decision = decisions[i];
+				RemoteSenderBudgetDecision decision = decisions[i];
 				float currentKbps = EstimateAudioLodBitrateKbps(decision.nextAudioLod);
 				if (currentKbps <= 0f)
 					continue;
@@ -1102,7 +1102,7 @@ namespace Portail.Stream.Mirror
 			return Mathf.Max(32, lods[lod].bitrateKbps);
 		}
 
-		float ComputeHighestEstimatedAudioVolumeForHost(ulong hostSteamId)
+		float ComputeHighestEstimatedAudioVolumeForSender(ulong senderSteamId)
 		{
 			if (audioListenerOverride == null || _streamPlayers == null || _streamPlayers.Length == 0)
 				return 0f;
@@ -1112,7 +1112,7 @@ namespace Portail.Stream.Mirror
 			for (int i = 0; i < _streamPlayers.Length; ++i)
 			{
 				PortailFeedPlayback player = _streamPlayers[i];
-				if (!IsPlayerShowingHost(player, hostSteamId))
+				if (!IsPlayerShowingSender(player, senderSteamId))
 					continue;
 
 				float volume = ComputeHighestEstimatedAudioVolumeForPlayer(player, listenerTransform);
@@ -1221,72 +1221,72 @@ namespace Portail.Stream.Mirror
 			}
 		}
 
-		bool IsPlayerShowingHost(PortailFeedPlayback player, ulong hostSteamId)
+		bool IsPlayerShowingSender(PortailFeedPlayback player, ulong senderSteamId)
 		{
 			if (player == null || !player.isActiveAndEnabled)
 				return false;
 
 			PortailFeed feed = player.Feed;
 			MirrorPortailParticipant participant = feed != null ? feed.GetComponent<MirrorPortailParticipant>() : null;
-			return participant != null && !participant.IsLocalParticipant && participant.OwnerStreamId == hostSteamId;
+			return participant != null && !participant.IsLocalParticipant && participant.OwnerStreamId == senderSteamId;
 		}
 
-		void ApplyVideoLod(ulong hostSteamId, RemoteHostState state, int lod)
+		void ApplyVideoLod(ulong senderSteamId, RemoteSenderState state, int lod)
 		{
 			lod = PortailStreamLodUtility.NormalizeLod(lod);
 			if (state.appliedVideoLod == lod)
 				return;
 
-			clientManager.SetMaxAcceptedVideoLod(hostSteamId, lod);
+			receiverManager.SetMaxAcceptedVideoLod(senderSteamId, lod);
 			state.appliedVideoLod = lod;
 
 			if (logQualityChanges)
 			{
-				Debug.Log($"[PortailStreamQualityController] Host {hostSteamId} video -> {PortailStreamLodUtility.ToVideoLabel(lod)} " +
+				Debug.Log($"[PortailStreamQualityController] Sender {senderSteamId} video -> {PortailStreamLodUtility.ToVideoLabel(lod)} " +
 					$"(visible pixels {state.lastProjectedPixelArea:0}, required bitrate {state.lastRequiredVideoBitrateKbps:0} kbps, " +
-					$"ideal {PortailStreamLodUtility.ToVideoLabel(state.lastIdealVideoLod)}, SDR cap {sdrPerHostBandwidthMbps:0.##} Mbps)");
+					$"ideal {PortailStreamLodUtility.ToVideoLabel(state.lastIdealVideoLod)}, SDR cap {sdrPerSenderBandwidthMbps:0.##} Mbps)");
 			}
 		}
 
-		void ApplyAudioLod(ulong hostSteamId, RemoteHostState state, int lod)
+		void ApplyAudioLod(ulong senderSteamId, RemoteSenderState state, int lod)
 		{
 			lod = PortailStreamLodUtility.NormalizeLod(lod);
 			if (state.appliedAudioLod == lod)
 				return;
 
-			clientManager.SetMaxAcceptedAudioLod(hostSteamId, lod);
+			receiverManager.SetMaxAcceptedAudioLod(senderSteamId, lod);
 			state.appliedAudioLod = lod;
 
 			if (logQualityChanges)
 			{
-				Debug.Log($"[PortailStreamQualityController] Host {hostSteamId} audio -> {PortailStreamLodUtility.ToAudioLabel(lod)} " +
-					$"(estimated volume {state.lastEstimatedAudioVolume:0.000}, threshold {audibleVolumeThreshold:0.000}, SDR cap {sdrPerHostBandwidthMbps:0.##} Mbps)");
+				Debug.Log($"[PortailStreamQualityController] Sender {senderSteamId} audio -> {PortailStreamLodUtility.ToAudioLabel(lod)} " +
+					$"(estimated volume {state.lastEstimatedAudioVolume:0.000}, threshold {audibleVolumeThreshold:0.000}, SDR cap {sdrPerSenderBandwidthMbps:0.##} Mbps)");
 			}
 		}
 
 		void RestoreManagedRemoteQualities()
 		{
-			if (clientManager == null)
-				clientManager = MirrorPortailStreamReceiver.Instance;
+			if (receiverManager == null)
+				receiverManager = MirrorPortailStreamReceiver.Instance;
 
-			if (clientManager == null)
+			if (receiverManager == null)
 				return;
 
-			foreach (KeyValuePair<ulong, RemoteHostState> pair in _states)
+			foreach (KeyValuePair<ulong, RemoteSenderState> pair in _states)
 				RestoreRemoteQuality(pair.Key, pair.Value);
 		}
 
-		void RestoreRemoteQuality(ulong hostSteamId, RemoteHostState state)
+		void RestoreRemoteQuality(ulong senderSteamId, RemoteSenderState state)
 		{
-			if (clientManager == null || hostSteamId == 0 || state == null || !state.capturedRestoreLods)
+			if (receiverManager == null || senderSteamId == 0 || state == null || !state.capturedRestoreLods)
 				return;
 
-			clientManager.SetMaxAcceptedVideoLod(hostSteamId, state.restoreVideoLod);
-			clientManager.SetMaxAcceptedAudioLod(hostSteamId, state.restoreAudioLod);
+			receiverManager.SetMaxAcceptedVideoLod(senderSteamId, state.restoreVideoLod);
+			receiverManager.SetMaxAcceptedAudioLod(senderSteamId, state.restoreAudioLod);
 
 			if (logQualityChanges)
 			{
-				Debug.Log($"[PortailStreamQualityController] Host {hostSteamId} restored to " +
+				Debug.Log($"[PortailStreamQualityController] Sender {senderSteamId} restored to " +
 					$"{PortailStreamLodUtility.ToVideoLabel(state.restoreVideoLod)} / {PortailStreamLodUtility.ToAudioLabel(state.restoreAudioLod)}");
 			}
 		}

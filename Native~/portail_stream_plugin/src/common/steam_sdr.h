@@ -30,8 +30,8 @@ namespace streamproto
 
 	enum class SdrRole
 	{
-		kHost,
-		kClient,
+		kSender,
+		kReceiver,
 	};
 
 	enum class SdrLane : std::uint16_t
@@ -46,7 +46,7 @@ namespace streamproto
 	struct SdrConfig
 	{
 		std::uint32_t app_id = 0;
-		SdrRole role = SdrRole::kHost;
+		SdrRole role = SdrRole::kSender;
 		std::uint64_t remote_steam_id = 0;
 		int virtual_port = kAutoStreamingVirtualPort;
 		int send_buffer_size = 8 * 1024 * 1024;
@@ -60,7 +60,7 @@ namespace streamproto
 		int p2p_log_level = k_ESteamNetworkingSocketsDebugOutputType_Msg;
 	};
 
-	struct HostPeerStatus
+	struct SenderPeerStatus
 	{
 		std::uint64_t steam_id = 0;
 		bool relayed = true;
@@ -85,10 +85,10 @@ namespace streamproto
 		bool Send(const void *data, std::size_t bytes, bool reliable, SdrLane lane = SdrLane::kControl, EResult *out_result = nullptr);
 		bool SendToSteamId(std::uint64_t steam_id, const void *data, std::size_t bytes, bool reliable, SdrLane lane = SdrLane::kControl, EResult *out_result = nullptr);
 		void Close(const char *reason);
-		void SetHostAllowedSteamIds(const std::vector<std::uint64_t> &steam_ids);
-		void SetHostPeerPaused(std::uint64_t steam_id, bool paused);
-		[[nodiscard]] std::vector<std::uint64_t> HostConnectedSteamIds() const;
-		[[nodiscard]] std::vector<HostPeerStatus> HostPeerStatuses() const;
+		void SetSenderAllowedSteamIds(const std::vector<std::uint64_t> &steam_ids);
+		void SetSenderPeerPaused(std::uint64_t steam_id, bool paused);
+		[[nodiscard]] std::vector<std::uint64_t> SenderConnectedSteamIds() const;
+		[[nodiscard]] std::vector<SenderPeerStatus> SenderPeerStatuses() const;
 		[[nodiscard]] HSteamNetConnection ConnectionHandleForSteamId(std::uint64_t steam_id) const;
 		[[nodiscard]] std::vector<HSteamNetConnection> ConnectionHandles() const;
 
@@ -118,10 +118,10 @@ namespace streamproto
 		std::atomic<HSteamListenSocket> listen_socket_{k_HSteamListenSocket_Invalid};
 		std::atomic<HSteamNetPollGroup> poll_group_{k_HSteamNetPollGroup_Invalid};
 		std::atomic<HSteamNetConnection> connection_{k_HSteamNetConnection_Invalid};
-		std::unordered_set<HSteamNetConnection> host_connections_;
-		std::unordered_map<HSteamNetConnection, std::uint64_t> host_connection_remote_ids_;
-		std::unordered_set<std::uint64_t> host_allowed_ids_;
-		std::unordered_set<std::uint64_t> host_paused_ids_;
+		std::unordered_set<HSteamNetConnection> sender_connections_;
+		std::unordered_map<HSteamNetConnection, std::uint64_t> sender_connection_remote_ids_;
+		std::unordered_set<std::uint64_t> sender_allowed_ids_;
+		std::unordered_set<std::uint64_t> sender_paused_ids_;
 		mutable std::mutex callback_mutex_;
 	};
 

@@ -11,17 +11,17 @@ namespace Portail.Stream.Mirror
 	public sealed class MirrorPortailStreamSender : MonoBehaviour
 	{
 		[Header("Lifecycle")]
-		[Tooltip("Controls which native host streaming plugin logs are forwarded to the Unity console. Native logging stays registered so errors can still be forwarded when this is set to Errors.")]
+		[Tooltip("Controls which native sender streaming plugin logs are forwarded to the Unity console. Native logging stays registered so errors can still be forwarded when this is set to Errors.")]
 		public PortailStreamNativeConsoleLogLevel nativeConsoleLogLevel = PortailStreamNativeConsoleLogLevel.All;
 		public bool allowSending = true;
 
 		[Header("Source")]
 		[SerializeField] PortailFeed sourceFeed;
 
-		[Header("Host Settings")]
+		[Header("Sender Settings")]
 		public uint appId = 480;
-		public List<PortailStreamVideoLodConfig> videoLods = PortailStreamHostPlugin.CreateDefaultVideoLods();
-		public List<PortailStreamAudioLodConfig> audioLods = PortailStreamHostPlugin.CreateDefaultAudioLods();
+		public List<PortailStreamVideoLodConfig> videoLods = PortailStreamSenderPlugin.CreateDefaultVideoLods();
+		public List<PortailStreamAudioLodConfig> audioLods = PortailStreamSenderPlugin.CreateDefaultAudioLods();
 		public bool disableIce;
 		public int chunkPayloadBytes = 24000;
 		public int parityShards;
@@ -33,7 +33,7 @@ namespace Portail.Stream.Mirror
 
 		[Header("Routing")]
 		public bool autoTargetAllRemotePlayers = true;
-		public List<ulong> manualHostTargetSteamIds = new List<ulong>();
+		public List<ulong> manualSenderTargetSteamIds = new List<ulong>();
 
 		[Header("Textures")]
 		public int fallbackTextureWidth = 1280;
@@ -47,33 +47,33 @@ namespace Portail.Stream.Mirror
 		public static MirrorPortailStreamSender Instance { get; private set; }
 
 		readonly Dictionary<int, MirrorPortailParticipant> _players = new Dictionary<int, MirrorPortailParticipant>();
-		readonly Dictionary<ulong, PortailStreamHostPeerStats> _peerStatsByClient = new Dictionary<ulong, PortailStreamHostPeerStats>();
-		readonly Dictionary<ulong, PortailStreamRateSample> _clientRateSamples = new Dictionary<ulong, PortailStreamRateSample>();
-		readonly List<ulong> _lastAppliedHostTargets = new List<ulong>();
+		readonly Dictionary<ulong, PortailStreamSenderPeerStats> _peerStatsByReceiver = new Dictionary<ulong, PortailStreamSenderPeerStats>();
+		readonly Dictionary<ulong, PortailStreamRateSample> _receiverRateSamples = new Dictionary<ulong, PortailStreamRateSample>();
+		readonly List<ulong> _lastAppliedSenderTargets = new List<ulong>();
 		readonly HashSet<int> _livePlayerIds = new HashSet<int>();
 		readonly List<int> _stalePlayerIds = new List<int>();
 		readonly HashSet<ulong> _steamIdSeen = new HashSet<ulong>();
-		readonly Dictionary<ulong, int> _maxAllowedClientVideoLods = new Dictionary<ulong, int>();
-		readonly Dictionary<ulong, int> _maxAllowedClientAudioLods = new Dictionary<ulong, int>();
-		readonly Dictionary<ulong, int> _lastAppliedMaxAllowedClientVideoLods = new Dictionary<ulong, int>();
-		readonly Dictionary<ulong, int> _lastAppliedMaxAllowedClientAudioLods = new Dictionary<ulong, int>();
-		readonly List<ulong> _desiredHostTargetsScratch = new List<ulong>();
-		readonly List<ulong> _staleClientSteamIds = new List<ulong>();
+		readonly Dictionary<ulong, int> _maxAllowedReceiverVideoLods = new Dictionary<ulong, int>();
+		readonly Dictionary<ulong, int> _maxAllowedReceiverAudioLods = new Dictionary<ulong, int>();
+		readonly Dictionary<ulong, int> _lastAppliedMaxAllowedReceiverVideoLods = new Dictionary<ulong, int>();
+		readonly Dictionary<ulong, int> _lastAppliedMaxAllowedReceiverAudioLods = new Dictionary<ulong, int>();
+		readonly List<ulong> _desiredSenderTargetsScratch = new List<ulong>();
+		readonly List<ulong> _staleReceiverSteamIds = new List<ulong>();
 		readonly List<PortailStreamVideoLodConfig> _lastAppliedVideoLods = new List<PortailStreamVideoLodConfig>();
 		readonly List<PortailStreamAudioLodConfig> _lastAppliedAudioLods = new List<PortailStreamAudioLodConfig>();
 		readonly List<bool> _lastAppliedVideoLodEnabled = new List<bool>();
 		readonly List<bool> _lastAppliedAudioLodEnabled = new List<bool>();
 
-		PortailStreamHostPlugin _host;
+		PortailStreamSenderPlugin _sender;
 		MirrorPortailParticipant _localSource;
 		float _nextPlayerRefreshAt;
 		float _nextStatsRefreshAt;
-		PortailStreamHostStats _hostStats;
-		PortailStreamHostVideoLodStats[] _videoLodStats = Array.Empty<PortailStreamHostVideoLodStats>();
-		PortailStreamHostAudioLodStats[] _audioLodStats = Array.Empty<PortailStreamHostAudioLodStats>();
-		PortailStreamRateSample _hostRateSample;
-		PortailStreamRateSample _hostEncodedVideoRateSample;
-		PortailStreamRateSample _hostEncodedAudioRateSample;
+		PortailStreamSenderStats _senderStats;
+		PortailStreamSenderVideoLodStats[] _videoLodStats = Array.Empty<PortailStreamSenderVideoLodStats>();
+		PortailStreamSenderAudioLodStats[] _audioLodStats = Array.Empty<PortailStreamSenderAudioLodStats>();
+		PortailStreamRateSample _senderRateSample;
+		PortailStreamRateSample _senderEncodedVideoRateSample;
+		PortailStreamRateSample _senderEncodedAudioRateSample;
 		PortailStreamRateSample[] _videoLodRateSamples = Array.Empty<PortailStreamRateSample>();
 		PortailStreamRateSample[] _audioLodRateSamples = Array.Empty<PortailStreamRateSample>();
 		bool _lastAppliedDisableIce;
@@ -87,22 +87,22 @@ namespace Portail.Stream.Mirror
 		bool _steamUnavailableLogged;
 		bool _initialized;
 
-		public bool IsStreaming => _host != null && _host.IsRunning();
-		public PortailStreamHostStats CurrentStats => _hostStats;
-		public IReadOnlyList<PortailStreamHostVideoLodStats> CurrentVideoLodStats => _videoLodStats;
-		public IReadOnlyList<PortailStreamHostAudioLodStats> CurrentAudioLodStats => _audioLodStats;
-		public float CurrentBitrateKbps => _hostRateSample.bitrateKbps;
-		public float CurrentEncodedVideoBitrateKbps => _hostEncodedVideoRateSample.bitrateKbps;
-		public float CurrentEncodedAudioBitrateKbps => _hostEncodedAudioRateSample.bitrateKbps;
-		public float CurrentFps => _hostEncodedVideoRateSample.fps;
-		public int CurrentEncodedWidth => _hostStats.encoded_width > 0 ? _hostStats.encoded_width : GetVideoLodWidth(0);
-		public int CurrentEncodedHeight => _hostStats.encoded_height > 0 ? _hostStats.encoded_height : GetVideoLodHeight(0);
-		public int CurrentEncodedFpsTarget => _hostStats.encoded_fps > 0 ? _hostStats.encoded_fps : GetVideoLodFpsTarget(0);
+		public bool IsStreaming => _sender != null && _sender.IsRunning();
+		public PortailStreamSenderStats CurrentStats => _senderStats;
+		public IReadOnlyList<PortailStreamSenderVideoLodStats> CurrentVideoLodStats => _videoLodStats;
+		public IReadOnlyList<PortailStreamSenderAudioLodStats> CurrentAudioLodStats => _audioLodStats;
+		public float CurrentBitrateKbps => _senderRateSample.bitrateKbps;
+		public float CurrentEncodedVideoBitrateKbps => _senderEncodedVideoRateSample.bitrateKbps;
+		public float CurrentEncodedAudioBitrateKbps => _senderEncodedAudioRateSample.bitrateKbps;
+		public float CurrentFps => _senderEncodedVideoRateSample.fps;
+		public int CurrentEncodedWidth => _senderStats.encoded_width > 0 ? _senderStats.encoded_width : GetVideoLodWidth(0);
+		public int CurrentEncodedHeight => _senderStats.encoded_height > 0 ? _senderStats.encoded_height : GetVideoLodHeight(0);
+		public int CurrentEncodedFpsTarget => _senderStats.encoded_fps > 0 ? _senderStats.encoded_fps : GetVideoLodFpsTarget(0);
 		public bool AllowSending => allowSending;
-		public int ActiveClientCount => _lastAppliedHostTargets.Count;
-		public IReadOnlyList<ulong> ActiveClientSteamIds => _lastAppliedHostTargets;
-		public Component HostPluginComponent => _host;
-		public object CurrentStatsBoxed => _hostStats;
+		public int ActiveReceiverCount => _lastAppliedSenderTargets.Count;
+		public IReadOnlyList<ulong> ActiveReceiverSteamIds => _lastAppliedSenderTargets;
+		public Component SenderPluginComponent => _sender;
+		public object CurrentStatsBoxed => _senderStats;
 		public PortailFeed SourceFeed => sourceFeed != null ? sourceFeed : _localSource != null ? _localSource.Feed : null;
 
 		void Awake()
@@ -136,9 +136,9 @@ namespace Portail.Stream.Mirror
 			if (Instance == this)
 				Instance = null;
 
-			StopHostStream();
-			if (_host != null)
-				_host.enabled = false;
+			StopSenderStream();
+			if (_sender != null)
+				_sender.enabled = false;
 		}
 
 		void OnDestroy()
@@ -146,16 +146,16 @@ namespace Portail.Stream.Mirror
 			if (Instance == this)
 				Instance = null;
 
-			StopHostStream();
-			if (_host != null)
-				_host.enabled = false;
+			StopSenderStream();
+			if (_sender != null)
+				_sender.enabled = false;
 
 			_players.Clear();
 		}
 
 		void Update()
 		{
-			EnsureHostPlugin();
+			EnsureSenderPlugin();
 
 			float now = Time.unscaledTime;
 			if (now >= _nextPlayerRefreshAt)
@@ -165,9 +165,9 @@ namespace Portail.Stream.Mirror
 			}
 
 			PublishLocalSteamIdentity();
-			EnsureHostStreamRunning();
+			EnsureSenderStreamRunning();
 
-			if ((_host != null && _host.IsRunning()) ||
+			if ((_sender != null && _sender.IsRunning()) ||
 				SourceFeed != null)
 			{
 				if (now >= _nextStatsRefreshAt)
@@ -179,10 +179,10 @@ namespace Portail.Stream.Mirror
 
 		}
 
-		public void SetManualHostTargets(IReadOnlyList<ulong> clientSteamIds)
+		public void SetManualSenderTargets(IReadOnlyList<ulong> receiverSteamIds)
 		{
 			autoTargetAllRemotePlayers = false;
-			PortailStreamMirrorUtility.SanitizeSteamIds(clientSteamIds, manualHostTargetSteamIds, _steamIdSeen);
+			PortailStreamMirrorUtility.SanitizeSteamIds(receiverSteamIds, manualSenderTargetSteamIds, _steamIdSeen);
 		}
 
 		public void ResetAutomaticPlayerRouting()
@@ -201,31 +201,31 @@ namespace Portail.Stream.Mirror
 				sourceFeed = null;
 		}
 
-		void EnsureHostPlugin()
+		void EnsureSenderPlugin()
 		{
-			if (_host == null)
+			if (_sender == null)
 			{
-				_host = GetComponent<PortailStreamHostPlugin>();
-				if (_host == null)
-					_host = gameObject.AddComponent<PortailStreamHostPlugin>();
+				_sender = GetComponent<PortailStreamSenderPlugin>();
+				if (_sender == null)
+					_sender = gameObject.AddComponent<PortailStreamSenderPlugin>();
 
-				_host.autoStart = false;
+				_sender.autoStart = false;
 			}
 
-			_host.enabled = true;
+			_sender.enabled = true;
 			ApplyNativeConsoleLoggingSettings();
 		}
 
 
 		void ApplyNativeConsoleLoggingSettings()
 		{
-			PortailStreamNativeLogBridge.HostConsoleLogLevel = nativeConsoleLogLevel;
+			PortailStreamNativeLogBridge.SenderConsoleLogLevel = nativeConsoleLogLevel;
 
-			if (_host != null)
+			if (_sender != null)
 			{
 				// Keep the native callback registered for every filter mode.
 				// The bridge decides which native messages reach the Unity console.
-				_host.enableNativeLogging = true;
+				_sender.enableNativeLogging = true;
 			}
 		}
 
@@ -234,113 +234,113 @@ namespace Portail.Stream.Mirror
 			if (_localSource == null)
 				return;
 
-			ulong localSteamId = PortailStreamMirrorUtility.ResolveLocalSteamId(_localSource, _host, null);
+			ulong localSteamId = PortailStreamMirrorUtility.ResolveLocalSteamId(_localSource, _sender, null);
 			if (localSteamId != 0)
 				_localSource.TryPublishOwnerStreamId(localSteamId);
 		}
 
-		void EnsureHostStreamRunning()
+		void EnsureSenderStreamRunning()
 		{
-			if (_host == null)
+			if (_sender == null)
 				return;
 
 			if (!allowSending)
 			{
 				_steamUnavailableLogged = false;
-				StopHostStream();
+				StopSenderStream();
 				return;
 			}
 
-			List<ulong> desiredTargets = BuildDesiredHostTargets();
+			List<ulong> desiredTargets = BuildDesiredSenderTargets();
 			bool shouldRun = global::Mirror.NetworkClient.active && _localSource != null && desiredTargets.Count > 0;
-			bool configChanged = HasHostRestartRequired();
+			bool configChanged = HasSenderRestartRequired();
 
 			if (!shouldRun)
 			{
 				_steamUnavailableLogged = false;
-				StopHostStream();
+				StopSenderStream();
 				return;
 			}
 
 			if (!PortailStreamMirrorUtility.EnsureSteamAvailable("MirrorPortailStreamSender", ref _steamUnavailableLogged))
 			{
-				StopHostStream();
+				StopSenderStream();
 				return;
 			}
 
-			if (_host.IsRunning() && configChanged)
-				StopHostStream();
+			if (_sender.IsRunning() && configChanged)
+				StopSenderStream();
 
-			ApplyHostSettings();
+			ApplySenderSettings();
 
-			if (!_host.IsRunning())
+			if (!_sender.IsRunning())
 			{
-				if (!_host.StartStreaming())
+				if (!_sender.StartStreaming())
 					return;
 
-				RememberAppliedHostSettings();
-				_lastAppliedHostTargets.Clear();
+				RememberAppliedSenderSettings();
+				_lastAppliedSenderTargets.Clear();
 			}
 
 			ApplyLodEnabledStates();
-			ApplyHostTargetsIfChanged(desiredTargets);
-			ApplyMaxAllowedClientLods();
+			ApplySenderTargetsIfChanged(desiredTargets);
+			ApplyMaxAllowedReceiverLods();
 		}
 
-		void ApplyHostSettings()
+		void ApplySenderSettings()
 		{
 			EnsureLodDefaults();
-			_host.appId = appId;
-			_host.videoLods = videoLods;
-			_host.audioLods = audioLods;
-			_host.disableIce = disableIce;
-			_host.chunkPayloadBytes = Mathf.Clamp(chunkPayloadBytes, 512, 60000);
-			_host.parityShards = Mathf.Clamp(parityShards, 0, 1);
-			_host.reliableVideo = reliableVideo;
-			_host.reliableKeyframes = reliableKeyframes;
-			_host.maxQueueMs = Mathf.Clamp(maxQueueMs, 0, 5000);
-			_host.codec = string.IsNullOrWhiteSpace(codec) ? "h264" : codec.Trim();
-			_host.encoder = string.IsNullOrWhiteSpace(encoder) ? "auto" : encoder.Trim();
-			_host.previewTexture = null;
+			_sender.appId = appId;
+			_sender.videoLods = videoLods;
+			_sender.audioLods = audioLods;
+			_sender.disableIce = disableIce;
+			_sender.chunkPayloadBytes = Mathf.Clamp(chunkPayloadBytes, 512, 60000);
+			_sender.parityShards = Mathf.Clamp(parityShards, 0, 1);
+			_sender.reliableVideo = reliableVideo;
+			_sender.reliableKeyframes = reliableKeyframes;
+			_sender.maxQueueMs = Mathf.Clamp(maxQueueMs, 0, 5000);
+			_sender.codec = string.IsNullOrWhiteSpace(codec) ? "h264" : codec.Trim();
+			_sender.encoder = string.IsNullOrWhiteSpace(encoder) ? "auto" : encoder.Trim();
+			_sender.previewTexture = null;
 			ApplyNativeConsoleLoggingSettings();
 		}
 
 		void PullStats(float now)
 		{
-			if (_host != null && _host.IsRunning())
+			if (_sender != null && _sender.IsRunning())
 			{
-				_hostStats = _host.GetStats();
-				ulong frameCounter = _hostStats.encoded_frames > 0 ? _hostStats.encoded_frames : _hostStats.capture_frames;
-				PortailStreamMirrorUtility.UpdateRateSample(ref _hostRateSample, _hostStats.sent_video_bytes + _hostStats.sent_audio_bytes, frameCounter, now);
-				PortailStreamMirrorUtility.UpdateRateSample(ref _hostEncodedVideoRateSample, _hostStats.encoded_video_bytes, frameCounter, now);
-				PortailStreamMirrorUtility.UpdateRateSample(ref _hostEncodedAudioRateSample, _hostStats.encoded_audio_bytes, _hostStats.encoded_audio_frames, now);
+				_senderStats = _sender.GetStats();
+				ulong frameCounter = _senderStats.encoded_frames > 0 ? _senderStats.encoded_frames : _senderStats.capture_frames;
+				PortailStreamMirrorUtility.UpdateRateSample(ref _senderRateSample, _senderStats.sent_video_bytes + _senderStats.sent_audio_bytes, frameCounter, now);
+				PortailStreamMirrorUtility.UpdateRateSample(ref _senderEncodedVideoRateSample, _senderStats.encoded_video_bytes, frameCounter, now);
+				PortailStreamMirrorUtility.UpdateRateSample(ref _senderEncodedAudioRateSample, _senderStats.encoded_audio_bytes, _senderStats.encoded_audio_frames, now);
 				PullLodStats(now);
 				PullPeerStats(now);
 				return;
 			}
 
-			_hostStats = default;
-			_videoLodStats = Array.Empty<PortailStreamHostVideoLodStats>();
-			_audioLodStats = Array.Empty<PortailStreamHostAudioLodStats>();
-			_peerStatsByClient.Clear();
-			_clientRateSamples.Clear();
-			PortailStreamMirrorUtility.UpdateRateSample(ref _hostRateSample, 0, 0, now);
-			PortailStreamMirrorUtility.UpdateRateSample(ref _hostEncodedVideoRateSample, 0, 0, now);
-			PortailStreamMirrorUtility.UpdateRateSample(ref _hostEncodedAudioRateSample, 0, 0, now);
+			_senderStats = default;
+			_videoLodStats = Array.Empty<PortailStreamSenderVideoLodStats>();
+			_audioLodStats = Array.Empty<PortailStreamSenderAudioLodStats>();
+			_peerStatsByReceiver.Clear();
+			_receiverRateSamples.Clear();
+			PortailStreamMirrorUtility.UpdateRateSample(ref _senderRateSample, 0, 0, now);
+			PortailStreamMirrorUtility.UpdateRateSample(ref _senderEncodedVideoRateSample, 0, 0, now);
+			PortailStreamMirrorUtility.UpdateRateSample(ref _senderEncodedAudioRateSample, 0, 0, now);
 		}
 
 		void PullLodStats(float now)
 		{
 			int videoCount = Mathf.Max(1, videoLods != null ? videoLods.Count : 0);
 			int audioCount = Mathf.Max(1, audioLods != null ? audioLods.Count : 0);
-			_videoLodStats = _host.GetVideoLodStats(videoCount);
-			_audioLodStats = _host.GetAudioLodStats(audioCount);
+			_videoLodStats = _sender.GetVideoLodStats(videoCount);
+			_audioLodStats = _sender.GetAudioLodStats(audioCount);
 			EnsureRateSampleSize(ref _videoLodRateSamples, _videoLodStats.Length);
 			EnsureRateSampleSize(ref _audioLodRateSamples, _audioLodStats.Length);
 
 			for (int i = 0; i < _videoLodStats.Length; ++i)
 			{
-				PortailStreamHostVideoLodStats stats = _videoLodStats[i];
+				PortailStreamSenderVideoLodStats stats = _videoLodStats[i];
 				int index = stats.index >= 0 && stats.index < _videoLodRateSamples.Length ? stats.index : i;
 				PortailStreamRateSample sample = _videoLodRateSamples[index];
 				PortailStreamMirrorUtility.UpdateRateSample(ref sample, stats.encoded_video_bytes, stats.encoded_frames, now);
@@ -349,7 +349,7 @@ namespace Portail.Stream.Mirror
 
 			for (int i = 0; i < _audioLodStats.Length; ++i)
 			{
-				PortailStreamHostAudioLodStats stats = _audioLodStats[i];
+				PortailStreamSenderAudioLodStats stats = _audioLodStats[i];
 				int index = stats.index >= 0 && stats.index < _audioLodRateSamples.Length ? stats.index : i;
 				PortailStreamRateSample sample = _audioLodRateSamples[index];
 				PortailStreamMirrorUtility.UpdateRateSample(ref sample, stats.encoded_audio_bytes, stats.encoded_audio_frames, now);
@@ -359,34 +359,34 @@ namespace Portail.Stream.Mirror
 
 		void PullPeerStats(float now)
 		{
-			_peerStatsByClient.Clear();
-			if (_host == null || !_host.IsRunning())
+			_peerStatsByReceiver.Clear();
+			if (_sender == null || !_sender.IsRunning())
 				return;
 
-			PortailStreamHostPeerStats[] peerStats = _host.GetPeerStats(Mathf.Max(16, _lastAppliedHostTargets.Count + 8));
+			PortailStreamSenderPeerStats[] peerStats = _sender.GetPeerStats(Mathf.Max(16, _lastAppliedSenderTargets.Count + 8));
 			for (int i = 0; i < peerStats.Length; ++i)
 			{
-				PortailStreamHostPeerStats stats = peerStats[i];
-				if (stats.client_steam_id == 0)
+				PortailStreamSenderPeerStats stats = peerStats[i];
+				if (stats.receiver_steam_id == 0)
 					continue;
 
-				_peerStatsByClient[stats.client_steam_id] = stats;
-				if (!_clientRateSamples.TryGetValue(stats.client_steam_id, out PortailStreamRateSample sample))
+				_peerStatsByReceiver[stats.receiver_steam_id] = stats;
+				if (!_receiverRateSamples.TryGetValue(stats.receiver_steam_id, out PortailStreamRateSample sample))
 					sample = default;
 
 				PortailStreamMirrorUtility.UpdateRateSample(ref sample, stats.sent_video_bytes + stats.sent_audio_bytes, stats.encoded_frames, now);
-				_clientRateSamples[stats.client_steam_id] = sample;
+				_receiverRateSamples[stats.receiver_steam_id] = sample;
 			}
 
-			_staleClientSteamIds.Clear();
-			foreach (ulong clientSteamId in _clientRateSamples.Keys)
+			_staleReceiverSteamIds.Clear();
+			foreach (ulong receiverSteamId in _receiverRateSamples.Keys)
 			{
-				if (!_peerStatsByClient.ContainsKey(clientSteamId))
-					_staleClientSteamIds.Add(clientSteamId);
+				if (!_peerStatsByReceiver.ContainsKey(receiverSteamId))
+					_staleReceiverSteamIds.Add(receiverSteamId);
 			}
 
-			for (int i = 0; i < _staleClientSteamIds.Count; ++i)
-				_clientRateSamples.Remove(_staleClientSteamIds[i]);
+			for (int i = 0; i < _staleReceiverSteamIds.Count; ++i)
+				_receiverRateSamples.Remove(_staleReceiverSteamIds[i]);
 		}
 
 		void RefreshPlayerViews()
@@ -394,11 +394,11 @@ namespace Portail.Stream.Mirror
 			PortailStreamMirrorUtility.RefreshPlayerViews(_players, _livePlayerIds, _stalePlayerIds, out _localSource);
 		}
 
-		List<ulong> BuildDesiredHostTargets()
+		List<ulong> BuildDesiredSenderTargets()
 		{
 			List<ulong> desiredTargets = autoTargetAllRemotePlayers
-				? PortailStreamMirrorUtility.BuildRemoteStreamIds(_players, _desiredHostTargetsScratch, _steamIdSeen, _localSource, requireBroadcasting: false)
-				: PortailStreamMirrorUtility.SanitizeSteamIds(manualHostTargetSteamIds, _desiredHostTargetsScratch, _steamIdSeen);
+				? PortailStreamMirrorUtility.BuildRemoteStreamIds(_players, _desiredSenderTargetsScratch, _steamIdSeen, _localSource, requireBroadcasting: false)
+				: PortailStreamMirrorUtility.SanitizeSteamIds(manualSenderTargetSteamIds, _desiredSenderTargetsScratch, _steamIdSeen);
 
 			return desiredTargets;
 		}
@@ -407,116 +407,116 @@ namespace Portail.Stream.Mirror
 		{
 			allowSending = enabled;
 			if (!enabled)
-				StopHostStream();
+				StopSenderStream();
 		}
 
-		public bool IsClientSendingEnabled(ulong clientSteamId)
+		public bool IsReceiverSendingEnabled(ulong receiverSteamId)
 		{
-			return clientSteamId != 0 &&
+			return receiverSteamId != 0 &&
 				   allowSending &&
-				   (GetClientVideoLod(clientSteamId) >= 0 ||
-					GetClientAudioLod(clientSteamId) >= 0);
+				   (GetReceiverVideoLod(receiverSteamId) >= 0 ||
+					GetReceiverAudioLod(receiverSteamId) >= 0);
 		}
 
-		public void SetClientSendingEnabled(ulong clientSteamId, bool enabled)
+		public void SetReceiverSendingEnabled(ulong receiverSteamId, bool enabled)
 		{
-			if (clientSteamId == 0)
+			if (receiverSteamId == 0)
 				return;
 
-			SetClientMaxAllowedVideoLod(clientSteamId, enabled ? PortailStreamLodUtility.Highest : PortailStreamLodUtility.Off);
-			SetClientMaxAllowedAudioLod(clientSteamId, enabled ? PortailStreamLodUtility.Highest : PortailStreamLodUtility.Off);
-			if (enabled && !autoTargetAllRemotePlayers && !manualHostTargetSteamIds.Contains(clientSteamId))
+			SetReceiverMaxAllowedVideoLod(receiverSteamId, enabled ? PortailStreamLodUtility.Highest : PortailStreamLodUtility.Off);
+			SetReceiverMaxAllowedAudioLod(receiverSteamId, enabled ? PortailStreamLodUtility.Highest : PortailStreamLodUtility.Off);
+			if (enabled && !autoTargetAllRemotePlayers && !manualSenderTargetSteamIds.Contains(receiverSteamId))
 			{
-				manualHostTargetSteamIds.Add(clientSteamId);
-				manualHostTargetSteamIds.Sort();
+				manualSenderTargetSteamIds.Add(receiverSteamId);
+				manualSenderTargetSteamIds.Sort();
 			}
 		}
 
-		public int GetClientVideoLod(ulong clientSteamId)
+		public int GetReceiverVideoLod(ulong receiverSteamId)
 		{
-			return GetClientMaxAllowedVideoLod(clientSteamId);
+			return GetReceiverMaxAllowedVideoLod(receiverSteamId);
 		}
 
-		public int GetClientAudioLod(ulong clientSteamId)
+		public int GetReceiverAudioLod(ulong receiverSteamId)
 		{
-			return GetClientMaxAllowedAudioLod(clientSteamId);
+			return GetReceiverMaxAllowedAudioLod(receiverSteamId);
 		}
 
-		public int GetClientMaxAllowedVideoLod(ulong clientSteamId)
+		public int GetReceiverMaxAllowedVideoLod(ulong receiverSteamId)
 		{
-			if (clientSteamId == 0)
+			if (receiverSteamId == 0)
 				return PortailStreamLodUtility.Off;
 
-			if (_peerStatsByClient.TryGetValue(clientSteamId, out PortailStreamHostPeerStats stats))
+			if (_peerStatsByReceiver.TryGetValue(receiverSteamId, out PortailStreamSenderPeerStats stats))
 				return PortailStreamLodUtility.NormalizeLod(stats.assigned_video_lod);
 
-			return _maxAllowedClientVideoLods.TryGetValue(clientSteamId, out int lod)
+			return _maxAllowedReceiverVideoLods.TryGetValue(receiverSteamId, out int lod)
 				? PortailStreamLodUtility.NormalizeLod(lod)
 				: PortailStreamLodUtility.Highest;
 		}
 
-		public int GetClientMaxAllowedAudioLod(ulong clientSteamId)
+		public int GetReceiverMaxAllowedAudioLod(ulong receiverSteamId)
 		{
-			if (clientSteamId == 0)
+			if (receiverSteamId == 0)
 				return PortailStreamLodUtility.Off;
 
-			if (_peerStatsByClient.TryGetValue(clientSteamId, out PortailStreamHostPeerStats stats))
+			if (_peerStatsByReceiver.TryGetValue(receiverSteamId, out PortailStreamSenderPeerStats stats))
 				return PortailStreamLodUtility.NormalizeLod(stats.assigned_audio_lod);
 
-			return _maxAllowedClientAudioLods.TryGetValue(clientSteamId, out int lod)
+			return _maxAllowedReceiverAudioLods.TryGetValue(receiverSteamId, out int lod)
 				? PortailStreamLodUtility.NormalizeLod(lod)
 				: PortailStreamLodUtility.Highest;
 		}
 
-		public int GetAvailableVideoLodForClient(ulong clientSteamId)
+		public int GetAvailableVideoLodForReceiver(ulong receiverSteamId)
 		{
-			if (clientSteamId != 0 && _peerStatsByClient.TryGetValue(clientSteamId, out PortailStreamHostPeerStats stats))
+			if (receiverSteamId != 0 && _peerStatsByReceiver.TryGetValue(receiverSteamId, out PortailStreamSenderPeerStats stats))
 				return PortailStreamLodUtility.NormalizeLod(stats.available_video_lod);
 
 			return PortailStreamLodUtility.Off;
 		}
 
-		public int GetAvailableAudioLodForClient(ulong clientSteamId)
+		public int GetAvailableAudioLodForReceiver(ulong receiverSteamId)
 		{
-			if (clientSteamId != 0 && _peerStatsByClient.TryGetValue(clientSteamId, out PortailStreamHostPeerStats stats))
+			if (receiverSteamId != 0 && _peerStatsByReceiver.TryGetValue(receiverSteamId, out PortailStreamSenderPeerStats stats))
 				return PortailStreamLodUtility.NormalizeLod(stats.available_audio_lod);
 
 			return PortailStreamLodUtility.Off;
 		}
 
-		public void SetClientVideoLod(ulong clientSteamId, int lod)
+		public void SetReceiverVideoLod(ulong receiverSteamId, int lod)
 		{
-			SetClientMaxAllowedVideoLod(clientSteamId, lod);
+			SetReceiverMaxAllowedVideoLod(receiverSteamId, lod);
 		}
 
-		public void SetClientAudioLod(ulong clientSteamId, int lod)
+		public void SetReceiverAudioLod(ulong receiverSteamId, int lod)
 		{
-			SetClientMaxAllowedAudioLod(clientSteamId, lod);
+			SetReceiverMaxAllowedAudioLod(receiverSteamId, lod);
 		}
 
-		public void SetClientMaxAllowedVideoLod(ulong clientSteamId, int lod)
+		public void SetReceiverMaxAllowedVideoLod(ulong receiverSteamId, int lod)
 		{
-			if (clientSteamId == 0)
+			if (receiverSteamId == 0)
 				return;
 
 			lod = PortailStreamLodUtility.NormalizeLod(lod);
-			_maxAllowedClientVideoLods[clientSteamId] = lod;
-			if (_host != null && _host.IsRunning())
-				_host.SetClientMaxAllowedVideoLod(clientSteamId, lod);
+			_maxAllowedReceiverVideoLods[receiverSteamId] = lod;
+			if (_sender != null && _sender.IsRunning())
+				_sender.SetReceiverMaxAllowedVideoLod(receiverSteamId, lod);
 		}
 
-		public void SetClientMaxAllowedAudioLod(ulong clientSteamId, int lod)
+		public void SetReceiverMaxAllowedAudioLod(ulong receiverSteamId, int lod)
 		{
-			if (clientSteamId == 0)
+			if (receiverSteamId == 0)
 				return;
 
 			lod = PortailStreamLodUtility.NormalizeLod(lod);
-			_maxAllowedClientAudioLods[clientSteamId] = lod;
-			if (_host != null && _host.IsRunning())
-				_host.SetClientMaxAllowedAudioLod(clientSteamId, lod);
+			_maxAllowedReceiverAudioLods[receiverSteamId] = lod;
+			if (_sender != null && _sender.IsRunning())
+				_sender.SetReceiverMaxAllowedAudioLod(receiverSteamId, lod);
 		}
 
-		public List<ulong> GetKnownRemoteClientSteamIds(List<ulong> destination)
+		public List<ulong> GetKnownRemoteReceiverSteamIds(List<ulong> destination)
 		{
 			if (destination == null)
 				destination = new List<ulong>();
@@ -526,33 +526,33 @@ namespace Portail.Stream.Mirror
 			return destination;
 		}
 
-		public bool IsClientCurrentlyActive(ulong clientSteamId)
+		public bool IsReceiverCurrentlyActive(ulong receiverSteamId)
 		{
-			return clientSteamId != 0 && _lastAppliedHostTargets.Contains(clientSteamId);
+			return receiverSteamId != 0 && _lastAppliedSenderTargets.Contains(receiverSteamId);
 		}
 
-		public bool TryGetRateForClient(ulong clientSteamId, out float bitrateKbps, out float fps)
+		public bool TryGetRateForReceiver(ulong receiverSteamId, out float bitrateKbps, out float fps)
 		{
 			bitrateKbps = 0f;
 			fps = 0f;
-			if (clientSteamId == 0 || !_lastAppliedHostTargets.Contains(clientSteamId))
+			if (receiverSteamId == 0 || !_lastAppliedSenderTargets.Contains(receiverSteamId))
 				return false;
 
-			if (_clientRateSamples.TryGetValue(clientSteamId, out PortailStreamRateSample sample))
+			if (_receiverRateSamples.TryGetValue(receiverSteamId, out PortailStreamRateSample sample))
 			{
 				bitrateKbps = sample.bitrateKbps;
 				fps = sample.fps;
 				return true;
 			}
 
-			bitrateKbps = _lastAppliedHostTargets.Count > 0 ? _hostRateSample.bitrateKbps / Mathf.Max(1, _lastAppliedHostTargets.Count) : 0f;
-			fps = _hostRateSample.fps;
+			bitrateKbps = _lastAppliedSenderTargets.Count > 0 ? _senderRateSample.bitrateKbps / Mathf.Max(1, _lastAppliedSenderTargets.Count) : 0f;
+			fps = _senderRateSample.fps;
 			return true;
 		}
 
-		public bool TryGetPeerStatsObject(ulong clientSteamId, out object stats)
+		public bool TryGetPeerStatsObject(ulong receiverSteamId, out object stats)
 		{
-			if (_peerStatsByClient.TryGetValue(clientSteamId, out PortailStreamHostPeerStats typedStats))
+			if (_peerStatsByReceiver.TryGetValue(receiverSteamId, out PortailStreamSenderPeerStats typedStats))
 			{
 				stats = typedStats;
 				return true;
@@ -562,14 +562,14 @@ namespace Portail.Stream.Mirror
 			return false;
 		}
 
-		public bool TryGetPeerStats(ulong clientSteamId, out PortailStreamHostPeerStats stats)
+		public bool TryGetPeerStats(ulong receiverSteamId, out PortailStreamSenderPeerStats stats)
 		{
-			return _peerStatsByClient.TryGetValue(clientSteamId, out stats);
+			return _peerStatsByReceiver.TryGetValue(receiverSteamId, out stats);
 		}
 
-		bool HasHostRestartRequired()
+		bool HasSenderRestartRequired()
 		{
-			if (_host == null || !_host.IsRunning())
+			if (_sender == null || !_sender.IsRunning())
 				return false;
 
 			return _lastAppliedDisableIce != disableIce ||
@@ -582,10 +582,10 @@ namespace Portail.Stream.Mirror
 				   _lastAppliedMaxQueueMs != Mathf.Clamp(maxQueueMs, 0, 5000) ||
 				   !string.Equals(_lastAppliedCodec, string.IsNullOrWhiteSpace(codec) ? "h264" : codec.Trim(), StringComparison.Ordinal) ||
 				   !string.Equals(_lastAppliedEncoder, string.IsNullOrWhiteSpace(encoder) ? "auto" : encoder.Trim(), StringComparison.Ordinal) ||
-				   _host.appId != appId;
+				   _sender.appId != appId;
 		}
 
-		void RememberAppliedHostSettings()
+		void RememberAppliedSenderSettings()
 		{
 			EnsureLodDefaults();
 			_lastAppliedDisableIce = disableIce;
@@ -602,31 +602,31 @@ namespace Portail.Stream.Mirror
 			_lastAppliedEncoder = string.IsNullOrWhiteSpace(encoder) ? "auto" : encoder.Trim();
 		}
 
-		void StopHostStream()
+		void StopSenderStream()
 		{
-			if (_host != null && _host.IsRunning())
-				_host.StopStreaming();
+			if (_sender != null && _sender.IsRunning())
+				_sender.StopStreaming();
 
-			_hostStats = default;
-			_videoLodStats = Array.Empty<PortailStreamHostVideoLodStats>();
-			_audioLodStats = Array.Empty<PortailStreamHostAudioLodStats>();
-			_hostRateSample = default;
-			_hostEncodedVideoRateSample = default;
-			_hostEncodedAudioRateSample = default;
+			_senderStats = default;
+			_videoLodStats = Array.Empty<PortailStreamSenderVideoLodStats>();
+			_audioLodStats = Array.Empty<PortailStreamSenderAudioLodStats>();
+			_senderRateSample = default;
+			_senderEncodedVideoRateSample = default;
+			_senderEncodedAudioRateSample = default;
 			_videoLodRateSamples = Array.Empty<PortailStreamRateSample>();
 			_audioLodRateSamples = Array.Empty<PortailStreamRateSample>();
-			_lastAppliedHostTargets.Clear();
-			_lastAppliedMaxAllowedClientVideoLods.Clear();
-			_lastAppliedMaxAllowedClientAudioLods.Clear();
+			_lastAppliedSenderTargets.Clear();
+			_lastAppliedMaxAllowedReceiverVideoLods.Clear();
+			_lastAppliedMaxAllowedReceiverAudioLods.Clear();
 			_lastAppliedVideoLodEnabled.Clear();
 			_lastAppliedAudioLodEnabled.Clear();
-			_peerStatsByClient.Clear();
-			_clientRateSamples.Clear();
+			_peerStatsByReceiver.Clear();
+			_receiverRateSamples.Clear();
 		}
 
 		void ApplyLodEnabledStates()
 		{
-			if (_host == null || !_host.IsRunning())
+			if (_sender == null || !_sender.IsRunning())
 				return;
 
 			EnsureLodDefaults();
@@ -636,7 +636,7 @@ namespace Portail.Stream.Mirror
 				bool enabled = videoLods[i] != null && videoLods[i].enabled;
 				if (_lastAppliedVideoLodEnabled[i] == enabled)
 					continue;
-				_host.SetVideoLodEnabled(i, enabled);
+				_sender.SetVideoLodEnabled(i, enabled);
 				_lastAppliedVideoLodEnabled[i] = enabled;
 			}
 
@@ -646,44 +646,44 @@ namespace Portail.Stream.Mirror
 				bool enabled = audioLods[i] != null && audioLods[i].enabled;
 				if (_lastAppliedAudioLodEnabled[i] == enabled)
 					continue;
-				_host.SetAudioLodEnabled(i, enabled);
+				_sender.SetAudioLodEnabled(i, enabled);
 				_lastAppliedAudioLodEnabled[i] = enabled;
 			}
 		}
 
-		void ApplyHostTargetsIfChanged(IReadOnlyList<ulong> desiredTargets)
+		void ApplySenderTargetsIfChanged(IReadOnlyList<ulong> desiredTargets)
 		{
-			if (_host == null || !_host.IsRunning())
+			if (_sender == null || !_sender.IsRunning())
 				return;
 
-			if (PortailStreamMirrorUtility.SteamIdListsEqual(_lastAppliedHostTargets, desiredTargets))
+			if (PortailStreamMirrorUtility.SteamIdListsEqual(_lastAppliedSenderTargets, desiredTargets))
 				return;
 
-			_host.SetClientSteamIds(desiredTargets);
-			PortailStreamMirrorUtility.CopySteamIds(desiredTargets, _lastAppliedHostTargets);
+			_sender.SetReceiverSteamIds(desiredTargets);
+			PortailStreamMirrorUtility.CopySteamIds(desiredTargets, _lastAppliedSenderTargets);
 		}
 
-		void ApplyMaxAllowedClientLods()
+		void ApplyMaxAllowedReceiverLods()
 		{
-			if (_host == null || !_host.IsRunning())
+			if (_sender == null || !_sender.IsRunning())
 				return;
 
-			foreach (KeyValuePair<ulong, int> pair in _maxAllowedClientVideoLods)
+			foreach (KeyValuePair<ulong, int> pair in _maxAllowedReceiverVideoLods)
 			{
-				if (_lastAppliedMaxAllowedClientVideoLods.TryGetValue(pair.Key, out int lastLod) && lastLod == pair.Value)
+				if (_lastAppliedMaxAllowedReceiverVideoLods.TryGetValue(pair.Key, out int lastLod) && lastLod == pair.Value)
 					continue;
 
-				_host.SetClientMaxAllowedVideoLod(pair.Key, pair.Value);
-				_lastAppliedMaxAllowedClientVideoLods[pair.Key] = pair.Value;
+				_sender.SetReceiverMaxAllowedVideoLod(pair.Key, pair.Value);
+				_lastAppliedMaxAllowedReceiverVideoLods[pair.Key] = pair.Value;
 			}
 
-			foreach (KeyValuePair<ulong, int> pair in _maxAllowedClientAudioLods)
+			foreach (KeyValuePair<ulong, int> pair in _maxAllowedReceiverAudioLods)
 			{
-				if (_lastAppliedMaxAllowedClientAudioLods.TryGetValue(pair.Key, out int lastLod) && lastLod == pair.Value)
+				if (_lastAppliedMaxAllowedReceiverAudioLods.TryGetValue(pair.Key, out int lastLod) && lastLod == pair.Value)
 					continue;
 
-				_host.SetClientMaxAllowedAudioLod(pair.Key, pair.Value);
-				_lastAppliedMaxAllowedClientAudioLods[pair.Key] = pair.Value;
+				_sender.SetReceiverMaxAllowedAudioLod(pair.Key, pair.Value);
+				_lastAppliedMaxAllowedReceiverAudioLods[pair.Key] = pair.Value;
 			}
 		}
 
@@ -694,9 +694,9 @@ namespace Portail.Stream.Mirror
 				return;
 
 			videoLods[lodIndex].enabled = enabled;
-			if (_host != null && _host.IsRunning())
+			if (_sender != null && _sender.IsRunning())
 			{
-				_host.SetVideoLodEnabled(lodIndex, enabled);
+				_sender.SetVideoLodEnabled(lodIndex, enabled);
 				EnsureBoolListSize(_lastAppliedVideoLodEnabled, videoLods.Count, false);
 				_lastAppliedVideoLodEnabled[lodIndex] = enabled;
 			}
@@ -709,9 +709,9 @@ namespace Portail.Stream.Mirror
 				return;
 
 			audioLods[lodIndex].enabled = enabled;
-			if (_host != null && _host.IsRunning())
+			if (_sender != null && _sender.IsRunning())
 			{
-				_host.SetAudioLodEnabled(lodIndex, enabled);
+				_sender.SetAudioLodEnabled(lodIndex, enabled);
 				EnsureBoolListSize(_lastAppliedAudioLodEnabled, audioLods.Count, false);
 				_lastAppliedAudioLodEnabled[lodIndex] = enabled;
 			}
@@ -767,9 +767,9 @@ namespace Portail.Stream.Mirror
 		void EnsureLodDefaults()
 		{
 			if (videoLods == null || videoLods.Count == 0)
-				videoLods = PortailStreamHostPlugin.CreateDefaultVideoLods();
+				videoLods = PortailStreamSenderPlugin.CreateDefaultVideoLods();
 			if (audioLods == null || audioLods.Count == 0)
-				audioLods = PortailStreamHostPlugin.CreateDefaultAudioLods();
+				audioLods = PortailStreamSenderPlugin.CreateDefaultAudioLods();
 		}
 
 		static void EnsureRateSampleSize(ref PortailStreamRateSample[] samples, int count)

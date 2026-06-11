@@ -1,0 +1,13 @@
+# ninja log v5
+21	49	0	clean	8ce05a001ce2fd8d
+20	1525	8028823210969971	CMakeFiles/stream_audio.dir/src/common/audio_stream.cpp.obj	c7e78fbab21146bd
+1527	1677	8028823212360216	stream_audio.lib	864f904a64461a26
+13	2629	8028823221984208	CMakeFiles/portail_stream_common.dir/src/common/steam_sdr.cpp.obj	cc4138dae6d98acc
+2630	6317	8028823229643819	portail_stream_common.dll	a46cebee506052e7
+2630	6317	8028823229643819	portail_stream_common.lib	a46cebee506052e7
+35	6509	8028823260697512	CMakeFiles/portail_stream_receiver_plugin.dir/src/plugin/receiver_plugin.cpp.obj	3c0e83079f1a563f
+6510	10885	8028823268777038	portail_stream_receiver_plugin.dll	5a8e0c1b9bd37cda
+6510	10885	8028823268777038	portail_stream_receiver_plugin.lib	5a8e0c1b9bd37cda
+27	15147	8028823346882903	CMakeFiles/portail_stream_sender_plugin.dir/src/plugin/sender_plugin.cpp.obj	9774477f496f9547
+15148	18183	8028823358518364	portail_stream_sender_plugin.dll	e18eaca0dd4e1a85
+15148	18183	8028823358518364	portail_stream_sender_plugin.lib	e18eaca0dd4e1a85

@@ -137,7 +137,7 @@ namespace streamproto
 			}
 
 			std::uint64_t steam_id_seed = 0;
-			if (config.role == SdrRole::kHost)
+			if (config.role == SdrRole::kSender)
 			{
 				if (SteamUser() != nullptr)
 				{
@@ -231,7 +231,7 @@ namespace streamproto
 		std::array<SteamNetworkingConfigValue_t, 16> config_values{};
 		const int config_count = BuildConfigOptions(config_values.data(), static_cast<int>(config_values.size()));
 
-		if (config_.role == SdrRole::kHost)
+		if (config_.role == SdrRole::kSender)
 		{
 			HSteamListenSocket listen = SteamNetworkingSockets()->CreateListenSocketP2P(
 				resolved_virtual_port,
@@ -244,20 +244,20 @@ namespace streamproto
 				return false;
 			}
 			listen_socket_.store(listen);
-			std::cerr << "[SDR] Host listen socket created on virtual_port=" << resolved_virtual_port << "\n";
+			std::cerr << "[SDR] Sender listen socket created on virtual_port=" << resolved_virtual_port << "\n";
 		}
 		else
 		{
 			if (config_.remote_steam_id == 0)
 			{
-				error = "Remote Steam ID is required for client role.";
+				error = "Remote Steam ID is required for receiver role.";
 				return false;
 			}
 
 			SteamNetworkingIdentity remote_identity{};
 			remote_identity.SetSteamID(CSteamID(config_.remote_steam_id));
 
-			std::cerr << "[SDR] Client connecting to SteamID=" << config_.remote_steam_id
+			std::cerr << "[SDR] Receiver connecting to SteamID=" << config_.remote_steam_id
 					  << " virtual_port=" << resolved_virtual_port << "\n";
 
 			HSteamNetConnection conn = SteamNetworkingSockets()->ConnectP2P(
@@ -272,7 +272,7 @@ namespace streamproto
 				return false;
 			}
 			connection_.store(conn);
-			std::cerr << "[SDR] Client connection handle=" << conn << "\n";
+			std::cerr << "[SDR] Receiver connection handle=" << conn << "\n";
 		}
 
 		return true;
@@ -339,11 +339,11 @@ namespace streamproto
 			if (message != nullptr && message->GetSize() > 0 && message->GetData() != nullptr)
 			{
 				std::uint64_t remote_steam_id = 0;
-				if (config_.role == SdrRole::kHost)
+				if (config_.role == SdrRole::kSender)
 				{
 					std::lock_guard<std::mutex> lock(callback_mutex_);
-					const auto it = host_connection_remote_ids_.find(message->m_conn);
-					if (it != host_connection_remote_ids_.end())
+					const auto it = sender_connection_remote_ids_.find(message->m_conn);
+					if (it != sender_connection_remote_ids_.end())
 					{
 						remote_steam_id = it->second;
 					}
@@ -371,32 +371,32 @@ namespace streamproto
 		return received;
 	}
 
-	void SteamSdr::SetHostAllowedSteamIds(const std::vector<std::uint64_t> &steam_ids)
+	void SteamSdr::SetSenderAllowedSteamIds(const std::vector<std::uint64_t> &steam_ids)
 	{
 		std::vector<HSteamNetConnection> disallowed_connections;
 		{
 			std::lock_guard<std::mutex> lock(callback_mutex_);
-			host_allowed_ids_.clear();
+			sender_allowed_ids_.clear();
 			for (std::uint64_t steam_id : steam_ids)
 			{
 				if (steam_id != 0)
 				{
-					host_allowed_ids_.insert(steam_id);
+					sender_allowed_ids_.insert(steam_id);
 				}
 			}
 
-			if (config_.role != SdrRole::kHost || host_allowed_ids_.empty())
+			if (config_.role != SdrRole::kSender || sender_allowed_ids_.empty())
 			{
 				return;
 			}
 
-			for (const auto &[conn, remote_id] : host_connection_remote_ids_)
+			for (const auto &[conn, remote_id] : sender_connection_remote_ids_)
 			{
 				if (conn == k_HSteamNetConnection_Invalid)
 				{
 					continue;
 				}
-				if (remote_id != 0 && host_allowed_ids_.find(remote_id) == host_allowed_ids_.end())
+				if (remote_id != 0 && sender_allowed_ids_.find(remote_id) == sender_allowed_ids_.end())
 				{
 					disallowed_connections.push_back(conn);
 				}
@@ -409,7 +409,7 @@ namespace streamproto
 		}
 	}
 
-	void SteamSdr::SetHostPeerPaused(std::uint64_t steam_id, bool paused)
+	void SteamSdr::SetSenderPeerPaused(std::uint64_t steam_id, bool paused)
 	{
 		if (steam_id == 0)
 		{
@@ -418,20 +418,20 @@ namespace streamproto
 		std::lock_guard<std::mutex> lock(callback_mutex_);
 		if (paused)
 		{
-			host_paused_ids_.insert(steam_id);
+			sender_paused_ids_.insert(steam_id);
 		}
 		else
 		{
-			host_paused_ids_.erase(steam_id);
+			sender_paused_ids_.erase(steam_id);
 		}
 	}
 
-	std::vector<std::uint64_t> SteamSdr::HostConnectedSteamIds() const
+	std::vector<std::uint64_t> SteamSdr::SenderConnectedSteamIds() const
 	{
 		std::vector<std::uint64_t> out;
 		std::lock_guard<std::mutex> lock(callback_mutex_);
-		out.reserve(host_connection_remote_ids_.size());
-		for (const auto &[_, steam_id] : host_connection_remote_ids_)
+		out.reserve(sender_connection_remote_ids_.size());
+		for (const auto &[_, steam_id] : sender_connection_remote_ids_)
 		{
 			if (steam_id != 0)
 			{
@@ -443,13 +443,13 @@ namespace streamproto
 		return out;
 	}
 
-	std::vector<HostPeerStatus> SteamSdr::HostPeerStatuses() const
+	std::vector<SenderPeerStatus> SteamSdr::SenderPeerStatuses() const
 	{
 		std::vector<std::pair<HSteamNetConnection, std::uint64_t>> snapshot;
 		{
 			std::lock_guard<std::mutex> lock(callback_mutex_);
-			snapshot.reserve(host_connection_remote_ids_.size());
-			for (const auto &[conn, steam_id] : host_connection_remote_ids_)
+			snapshot.reserve(sender_connection_remote_ids_.size());
+			for (const auto &[conn, steam_id] : sender_connection_remote_ids_)
 			{
 				if (conn == k_HSteamNetConnection_Invalid || steam_id == 0)
 				{
@@ -459,7 +459,7 @@ namespace streamproto
 			}
 		}
 
-		std::vector<HostPeerStatus> out;
+		std::vector<SenderPeerStatus> out;
 		out.reserve(snapshot.size());
 		for (const auto &[conn, steam_id] : snapshot)
 		{
@@ -469,20 +469,20 @@ namespace streamproto
 				continue;
 			}
 
-			HostPeerStatus status{};
+			SenderPeerStatus status{};
 			status.steam_id = steam_id;
 			status.relayed = (info.m_nFlags & k_nSteamNetworkConnectionInfoFlags_Relayed) != 0;
 			{
 				std::lock_guard<std::mutex> lock(callback_mutex_);
-				status.paused = host_paused_ids_.find(steam_id) != host_paused_ids_.end();
+				status.paused = sender_paused_ids_.find(steam_id) != sender_paused_ids_.end();
 			}
 			out.push_back(status);
 		}
 
-		std::sort(out.begin(), out.end(), [](const HostPeerStatus &a, const HostPeerStatus &b)
+		std::sort(out.begin(), out.end(), [](const SenderPeerStatus &a, const SenderPeerStatus &b)
 				  { return a.steam_id < b.steam_id; });
 		out.erase(
-			std::unique(out.begin(), out.end(), [](const HostPeerStatus &a, const HostPeerStatus &b)
+			std::unique(out.begin(), out.end(), [](const SenderPeerStatus &a, const SenderPeerStatus &b)
 						{ return a.steam_id == b.steam_id; }),
 			out.end());
 		return out;
@@ -496,11 +496,11 @@ namespace streamproto
 		}
 
 		std::lock_guard<std::mutex> lock(callback_mutex_);
-		if (config_.role == SdrRole::kHost)
+		if (config_.role == SdrRole::kSender)
 		{
-			for (const auto &[conn, remote_id] : host_connection_remote_ids_)
+			for (const auto &[conn, remote_id] : sender_connection_remote_ids_)
 			{
-				if (remote_id == steam_id && host_connections_.find(conn) != host_connections_.end())
+				if (remote_id == steam_id && sender_connections_.find(conn) != sender_connections_.end())
 				{
 					return conn;
 				}
@@ -519,10 +519,10 @@ namespace streamproto
 	{
 		std::vector<HSteamNetConnection> out;
 		std::lock_guard<std::mutex> lock(callback_mutex_);
-		if (config_.role == SdrRole::kHost)
+		if (config_.role == SdrRole::kSender)
 		{
-			out.reserve(host_connections_.size());
-			for (HSteamNetConnection conn : host_connections_)
+			out.reserve(sender_connections_.size());
+			for (HSteamNetConnection conn : sender_connections_)
 			{
 				if (conn != k_HSteamNetConnection_Invalid)
 				{
@@ -551,7 +551,7 @@ namespace streamproto
 			return false;
 		}
 
-		if (config_.role == SdrRole::kHost)
+		if (config_.role == SdrRole::kSender)
 		{
 			std::vector<HSteamNetConnection> connections;
 			std::unordered_map<HSteamNetConnection, std::uint64_t> remote_ids;
@@ -559,7 +559,7 @@ namespace streamproto
 			std::unordered_set<std::uint64_t> paused_ids;
 			{
 				std::lock_guard<std::mutex> lock(callback_mutex_);
-				if (host_connections_.empty())
+				if (sender_connections_.empty())
 				{
 					if (out_result != nullptr)
 					{
@@ -567,10 +567,10 @@ namespace streamproto
 					}
 					return false;
 				}
-				connections.assign(host_connections_.begin(), host_connections_.end());
-				remote_ids = host_connection_remote_ids_;
-				allowed_ids = host_allowed_ids_;
-				paused_ids = host_paused_ids_;
+				connections.assign(sender_connections_.begin(), sender_connections_.end());
+				remote_ids = sender_connection_remote_ids_;
+				allowed_ids = sender_allowed_ids_;
+				paused_ids = sender_paused_ids_;
 			}
 
 			HSteamNetConnection primary = k_HSteamNetConnection_Invalid;
@@ -712,9 +712,9 @@ namespace streamproto
 		HSteamNetConnection target = k_HSteamNetConnection_Invalid;
 		{
 			std::lock_guard<std::mutex> lock(callback_mutex_);
-			if (config_.role == SdrRole::kHost)
+			if (config_.role == SdrRole::kSender)
 			{
-				if (!host_allowed_ids_.empty() && host_allowed_ids_.find(steam_id) == host_allowed_ids_.end())
+				if (!sender_allowed_ids_.empty() && sender_allowed_ids_.find(steam_id) == sender_allowed_ids_.end())
 				{
 					if (out_result != nullptr)
 					{
@@ -723,9 +723,9 @@ namespace streamproto
 					return false;
 				}
 
-				for (const auto &[conn, remote_id] : host_connection_remote_ids_)
+				for (const auto &[conn, remote_id] : sender_connection_remote_ids_)
 				{
-					if (remote_id == steam_id && host_connections_.find(conn) != host_connections_.end())
+					if (remote_id == steam_id && sender_connections_.find(conn) != sender_connections_.end())
 					{
 						target = conn;
 						break;
@@ -773,18 +773,18 @@ namespace streamproto
 		std::vector<HSteamNetConnection> connections_to_close;
 		{
 			std::lock_guard<std::mutex> lock(callback_mutex_);
-			if (config_.role == SdrRole::kHost)
+			if (config_.role == SdrRole::kSender)
 			{
-				for (HSteamNetConnection conn : host_connections_)
+				for (HSteamNetConnection conn : sender_connections_)
 				{
 					if (conn != k_HSteamNetConnection_Invalid)
 					{
 						connections_to_close.push_back(conn);
 					}
 				}
-				host_connections_.clear();
-				host_connection_remote_ids_.clear();
-				host_paused_ids_.clear();
+				sender_connections_.clear();
+				sender_connection_remote_ids_.clear();
+				sender_paused_ids_.clear();
 				connection_.store(k_HSteamNetConnection_Invalid);
 				connected_.store(false);
 			}
@@ -1039,7 +1039,7 @@ namespace streamproto
 			char remote_addr[128] = {};
 			info.m_addrRemote.ToString(remote_addr, sizeof(remote_addr), true);
 			const bool is_fast = (info.m_nFlags & k_nSteamNetworkConnectionInfoFlags_Fast) != 0;
-			std::cerr << "[SDR] " << (config_.role == SdrRole::kHost ? "host" : "client")
+			std::cerr << "[SDR] " << (config_.role == SdrRole::kSender ? "sender" : "receiver")
 					  << " " << (phase != nullptr ? phase : "status")
 					  << " conn=" << conn
 					  << " path=" << ConnectionPathNameFromFlags(info.m_nFlags)
@@ -1058,7 +1058,7 @@ namespace streamproto
 			return;
 		}
 		const std::size_t text_len = std::strlen(text.data());
-		std::cerr << "[SDR] " << (config_.role == SdrRole::kHost ? "host" : "client")
+		std::cerr << "[SDR] " << (config_.role == SdrRole::kSender ? "sender" : "receiver")
 				  << " " << (phase != nullptr ? phase : "status")
 				  << " conn=" << conn << " detailed:\n"
 				  << text.data();
@@ -1102,7 +1102,7 @@ namespace streamproto
 			return;
 		}
 
-		std::cerr << "[SDR] " << (config_.role == SdrRole::kHost ? "host" : "client")
+		std::cerr << "[SDR] " << (config_.role == SdrRole::kSender ? "sender" : "receiver")
 				  << " " << (phase != nullptr ? phase : "event")
 				  << " conn=" << info->m_hConn
 				  << " path=" << ConnectionPathNameFromFlags(info->m_info.m_nFlags)
@@ -1132,14 +1132,14 @@ namespace streamproto
 		}
 
 		std::lock_guard<std::mutex> lock(callback_mutex_);
-		if (config_.role == SdrRole::kHost)
+		if (config_.role == SdrRole::kSender)
 		{
 			HSteamListenSocket listen = listen_socket_.load();
 			if (listen != k_HSteamListenSocket_Invalid && info->m_info.m_hListenSocket == listen)
 			{
 				return true;
 			}
-			if (host_connections_.find(info->m_hConn) != host_connections_.end())
+			if (sender_connections_.find(info->m_hConn) != sender_connections_.end())
 			{
 				return true;
 			}
@@ -1180,9 +1180,9 @@ namespace streamproto
 		std::lock_guard<std::mutex> lock(callback_mutex_);
 		LogConnectionEvent("status", info);
 
-		auto register_host_connection = [&]()
+		auto register_sender_connection = [&]()
 		{
-			if (config_.role != SdrRole::kHost)
+			if (config_.role != SdrRole::kSender)
 			{
 				return false;
 			}
@@ -1190,14 +1190,14 @@ namespace streamproto
 			HSteamListenSocket listen = listen_socket_.load();
 			const bool matches_listen_socket =
 				listen != k_HSteamListenSocket_Invalid && info->m_info.m_hListenSocket == listen;
-			const bool already_tracked = host_connections_.find(info->m_hConn) != host_connections_.end();
+			const bool already_tracked = sender_connections_.find(info->m_hConn) != sender_connections_.end();
 			if (!matches_listen_socket && !already_tracked)
 			{
 				return false;
 			}
 
 			const std::uint64_t remote_id = info->m_info.m_identityRemote.GetSteamID64();
-			if (!host_allowed_ids_.empty() && (remote_id == 0 || host_allowed_ids_.find(remote_id) == host_allowed_ids_.end()))
+			if (!sender_allowed_ids_.empty() && (remote_id == 0 || sender_allowed_ids_.find(remote_id) == sender_allowed_ids_.end()))
 			{
 				std::cerr << "[SDR] Rejecting connection from non-allowed SteamID=" << remote_id << "\n";
 				SteamNetworkingSockets()->CloseConnection(info->m_hConn, 0, "not-allowed", false);
@@ -1212,22 +1212,22 @@ namespace streamproto
 				bool set_group_ok = SteamNetworkingSockets()->SetConnectionPollGroup(info->m_hConn, pg);
 				if (!set_group_ok)
 				{
-					std::cerr << "[SDR] SetConnectionPollGroup failed while registering host connection.\n";
+					std::cerr << "[SDR] SetConnectionPollGroup failed while registering sender connection.\n";
 				}
 			}
 
-			host_connections_.insert(info->m_hConn);
+			sender_connections_.insert(info->m_hConn);
 			if (remote_id != 0)
 			{
-				host_connection_remote_ids_[info->m_hConn] = remote_id;
+				sender_connection_remote_ids_[info->m_hConn] = remote_id;
 			}
 
 			HSteamNetConnection current = connection_.load();
-			if (current == k_HSteamNetConnection_Invalid || host_connections_.find(current) == host_connections_.end())
+			if (current == k_HSteamNetConnection_Invalid || sender_connections_.find(current) == sender_connections_.end())
 			{
 				connection_.store(info->m_hConn);
 			}
-			connected_.store(!host_connections_.empty());
+			connected_.store(!sender_connections_.empty());
 			return true;
 		};
 
@@ -1238,7 +1238,7 @@ namespace streamproto
 
 		case k_ESteamNetworkingConnectionState_Connecting:
 		{
-			if (config_.role == SdrRole::kHost)
+			if (config_.role == SdrRole::kSender)
 			{
 				HSteamListenSocket listen = listen_socket_.load();
 				if (listen != k_HSteamListenSocket_Invalid && info->m_info.m_hListenSocket == listen)
@@ -1255,7 +1255,7 @@ namespace streamproto
 						std::cerr << "[SDR] AcceptConnection already advanced for conn=" << info->m_hConn
 								  << ", treating as accepted.\n";
 					}
-					register_host_connection();
+					register_sender_connection();
 				}
 			}
 			break;
@@ -1263,18 +1263,18 @@ namespace streamproto
 
 		case k_ESteamNetworkingConnectionState_FindingRoute:
 		{
-			if (config_.role == SdrRole::kHost)
+			if (config_.role == SdrRole::kSender)
 			{
-				register_host_connection();
+				register_sender_connection();
 			}
 			break;
 		}
 
 		case k_ESteamNetworkingConnectionState_Connected:
 		{
-			if (config_.role == SdrRole::kHost)
+			if (config_.role == SdrRole::kSender)
 			{
-				if (register_host_connection())
+				if (register_sender_connection())
 				{
 					LogDetailedConnectionStatus(info->m_hConn, "connected");
 				}
@@ -1308,23 +1308,23 @@ namespace streamproto
 		case k_ESteamNetworkingConnectionState_ProblemDetectedLocally:
 		{
 			LogDetailedConnectionStatus(info->m_hConn, "closed");
-			if (config_.role == SdrRole::kHost)
+			if (config_.role == SdrRole::kSender)
 			{
-				host_connections_.erase(info->m_hConn);
-				host_connection_remote_ids_.erase(info->m_hConn);
+				sender_connections_.erase(info->m_hConn);
+				sender_connection_remote_ids_.erase(info->m_hConn);
 				HSteamNetConnection current = connection_.load();
 				if (current == info->m_hConn)
 				{
-					if (host_connections_.empty())
+					if (sender_connections_.empty())
 					{
 						connection_.store(k_HSteamNetConnection_Invalid);
 					}
 					else
 					{
-						connection_.store(*host_connections_.begin());
+						connection_.store(*sender_connections_.begin());
 					}
 				}
-				connected_.store(!host_connections_.empty());
+				connected_.store(!sender_connections_.empty());
 			}
 			else
 			{

@@ -2,3 +2,5 @@ Native~/portail_stream_plugin/external[[:space:]]DLLs/avcodec-62.dll filter=lfs 
 Native~/portail_stream_plugin/external[[:space:]]DLLs/avfilter-11.dll filter=lfs diff=lfs merge=lfs -text
 Stream/Plugins/avcodec-62.dll filter=lfs diff=lfs merge=lfs -text
 Stream/Plugins/avfilter-11.dll filter=lfs diff=lfs merge=lfs -text
+Native~/portail_stream_plugin/build_refactor/avcodec-62.dll filter=lfs diff=lfs merge=lfs -text
+Native~/portail_stream_plugin/build_refactor/avfilter-11.dll filter=lfs diff=lfs merge=lfs -text

@@ -114,8 +114,8 @@ namespace Portail.Stream.Mirror
 
 		public static ulong ResolveLocalSteamId(
 			MirrorPortailParticipant localSource,
-			PortailStreamHostPlugin host,
-			PortailStreamClientPlugin client)
+			PortailStreamSenderPlugin sender,
+			PortailStreamReceiverPlugin receiver)
 		{
 			if (localSource != null && localSource.OwnerStreamId != 0)
 				return localSource.OwnerStreamId;
@@ -137,18 +137,18 @@ namespace Portail.Stream.Mirror
 				// Facepunch Steamworks is optional at runtime.
 			}
 
-			if (host != null && host.IsRunning())
+			if (sender != null && sender.IsRunning())
 			{
-				PortailStreamHostStats hostStats = host.GetStats();
-				if (hostStats.local_steam_id != 0)
-					return hostStats.local_steam_id;
+				PortailStreamSenderStats senderStats = sender.GetStats();
+				if (senderStats.local_steam_id != 0)
+					return senderStats.local_steam_id;
 			}
 
-			if (client != null && client.IsRunning())
+			if (receiver != null && receiver.IsRunning())
 			{
-				PortailStreamClientStats clientStats = client.GetStats();
-				if (clientStats.local_steam_id != 0)
-					return clientStats.local_steam_id;
+				PortailStreamReceiverStats receiverStats = receiver.GetStats();
+				if (receiverStats.local_steam_id != 0)
+					return receiverStats.local_steam_id;
 			}
 
 			return 0;

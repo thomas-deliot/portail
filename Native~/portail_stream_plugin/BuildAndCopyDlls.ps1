@@ -90,8 +90,8 @@ try {
     Invoke-CheckedCmd $buildCommand
 
     $expectedDlls = @(
-        "..\..\Stream\Plugins\portail_stream_host_plugin.dll",
-        "..\..\Stream\Plugins\portail_stream_client_plugin.dll",
+        "..\..\Stream\Plugins\portail_stream_sender_plugin.dll",
+        "..\..\Stream\Plugins\portail_stream_receiver_plugin.dll",
         "..\..\Stream\Plugins\portail_stream_common.dll",
         "..\..\Stream\Plugins\avcodec-62.dll",
         "..\..\Stream\Plugins\avdevice-62.dll",
