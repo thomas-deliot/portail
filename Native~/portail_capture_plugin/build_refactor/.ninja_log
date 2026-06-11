@@ -1,0 +1,6 @@
+# ninja log v5
+18	41	0	clean	8ce05a001ce2fd8d
+15	2476	8028848119165034	CMakeFiles/portail_capture_plugin.dir/src/common/virtualdesktop_audio_stream.cpp.obj	bf81517634454203
+10	7280	8028848167137949	CMakeFiles/portail_capture_plugin.dir/src/plugin/virtualdesktop_plugin.cpp.obj	c29afcc49d7d6098
+7280	8153	8028848174253787	portail_capture_plugin.dll	31ccca06a339e9f9
+7280	8153	8028848174253787	portail_capture_plugin.lib	31ccca06a339e9f9

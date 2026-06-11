@@ -1,16 +1,31 @@
 # ninja log v5
+31	4361	8028835329584802	CMakeFiles/portail_stream_receiver_plugin.dir/src/plugin/receiver_plugin.cpp.obj	5df0b9f86fb6632f
 22	49	0	clean	8ce05a001ce2fd8d
 18	1156	8028835297565696	CMakeFiles/stream_audio.dir/src/common/audio_stream.cpp.obj	888e91980e0dace9
+2020	2312	8028835308872173	portail_stream_common.dll	520ab9c789b77c99
 1157	1291	8028835298780131	stream_audio.lib	f6751bad131f2165
 11	2020	8028835306196737	CMakeFiles/portail_stream_common.dir/src/common/steam_sdr.cpp.obj	285959ae7ddfd0ee
-2020	2312	8028835308872173	portail_stream_common.dll	520ab9c789b77c99
+24	9619	8028835382123558	CMakeFiles/portail_stream_sender_plugin.dir/src/plugin/sender_plugin.cpp.obj	2adcf2d6386c21e7
 2020	2312	8028835308872173	portail_stream_common.lib	520ab9c789b77c99
-31	4361	8028835329584802	CMakeFiles/portail_stream_receiver_plugin.dir/src/plugin/receiver_plugin.cpp.obj	5df0b9f86fb6632f
+9619	9910	8028835384839160	portail_stream_sender_plugin.lib	caa0dcda137e2f4b
 4361	4590	8028835331677449	portail_stream_receiver_plugin.dll	f91d91f075a863d0
 4361	4590	8028835331677449	portail_stream_receiver_plugin.lib	f91d91f075a863d0
-24	9619	8028835382123558	CMakeFiles/portail_stream_sender_plugin.dir/src/plugin/sender_plugin.cpp.obj	2adcf2d6386c21e7
 9619	9910	8028835384839160	portail_stream_sender_plugin.dll	caa0dcda137e2f4b
-9619	9910	8028835384839160	portail_stream_sender_plugin.lib	caa0dcda137e2f4b
 9910	10180	0	CMakeFiles/copy_portail_stream_plugins	b741b3b7694641bf
-9910	10180	0	C:/Users/Thomas/Programmation/Business/Portail Games/portail/Native~/portail_stream_plugin/build_refactor/CMakeFiles/copy_portail_stream_plugins	b741b3b7694641bf
 10180	10933	8028835384839160	CMakeFiles/copy_portail_stream_plugins.util	5ff8e154fecd6b10
+9910	10180	0	C:/Users/Thomas/Programmation/Business/Portail Games/portail/Native~/portail_stream_plugin/build_refactor/CMakeFiles/copy_portail_stream_plugins	b741b3b7694641bf
+24	50	0	clean	8ce05a001ce2fd8d
+17	1007	8028848302973254	CMakeFiles/stream_audio.dir/src/common/audio_stream.cpp.obj	888e91980e0dace9
+1008	1108	8028848303894836	stream_audio.lib	f6751bad131f2165
+10	1801	8028848310906496	CMakeFiles/portail_stream_common.dir/src/common/steam_sdr.cpp.obj	285959ae7ddfd0ee
+1801	2003	8028848312703326	portail_stream_common.dll	520ab9c789b77c99
+1801	2003	8028848312703326	portail_stream_common.lib	520ab9c789b77c99
+27	3770	8028848330559233	CMakeFiles/portail_stream_receiver_plugin.dir/src/plugin/receiver_plugin.cpp.obj	5df0b9f86fb6632f
+3770	3985	8028848332520832	portail_stream_receiver_plugin.dll	f91d91f075a863d0
+3770	3985	8028848332520832	portail_stream_receiver_plugin.lib	f91d91f075a863d0
+22	8582	8028848378591036	CMakeFiles/portail_stream_sender_plugin.dir/src/plugin/sender_plugin.cpp.obj	2adcf2d6386c21e7
+8583	8813	8028848380804122	portail_stream_sender_plugin.dll	caa0dcda137e2f4b
+8583	8813	8028848380804122	portail_stream_sender_plugin.lib	caa0dcda137e2f4b
+8813	9044	0	CMakeFiles/copy_portail_stream_plugins	b741b3b7694641bf
+8813	9044	0	C:/Users/Thomas/Programmation/Business/Portail Games/portail/Native~/portail_stream_plugin/build_refactor/CMakeFiles/copy_portail_stream_plugins	b741b3b7694641bf
+9045	9914	8028848380804122	CMakeFiles/copy_portail_stream_plugins.util	5ff8e154fecd6b10
