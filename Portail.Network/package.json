@@ -1,0 +1,17 @@
+{
+  "name": "com.meta-game.portail.network",
+  "version": "0.1.0",
+  "displayName": "Portail Network",
+  "description": "Portail network runtime assemblies and native plugins for Steam-backed streaming and remote control.",
+  "unity": "6000.3",
+  "author": {
+    "name": "Meta Game"
+  },
+  "dependencies": {
+    "com.meta-game.portail.local": "0.1.0"
+  },
+  "peerDependencies": {
+    "com.mirrornetworking.mirror": "Mirror runtime assembly required by Portail.Network.Stream",
+    "com.mirror.steamworks.net": "FizzySteamworks/FizzyFacepunch Steam transport required by Portail.Network.Stream"
+  }
+}

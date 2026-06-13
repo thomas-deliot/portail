@@ -1,0 +1,18 @@
+{
+    "name": "Portail.Network.Control.Runtime",
+    "rootNamespace": "Portail.Network.Control",
+    "references": [
+        "Portail.Local.Core.Runtime",
+        "Portail.Local.Control.Runtime",
+        "Mirror"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
